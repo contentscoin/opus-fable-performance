@@ -1,0 +1,21 @@
+{
+  "name": "opus-fable-performance",
+  "version": "0.1.0",
+  "description": "Maximum-performance Opus operating layer: deep diagnosis, decisive verification, evidence-backed recommendations, and Opus reviewer workflows.",
+  "author": {
+    "name": "Local",
+    "url": "https://github.com/local"
+  },
+  "homepage": "https://github.com/local/opus-fable-performance",
+  "repository": "https://github.com/local/opus-fable-performance",
+  "license": "MIT",
+  "keywords": [
+    "opus",
+    "fable",
+    "claude-code",
+    "output-style",
+    "reviewer",
+    "performance"
+  ]
+}
+

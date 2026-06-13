@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/opus-reminder.sh\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}
+

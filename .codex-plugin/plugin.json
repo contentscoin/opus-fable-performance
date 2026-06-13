@@ -1,0 +1,33 @@
+{
+  "name": "opus-fable-performance",
+  "version": "0.1.0",
+  "description": "Maximum-performance Opus operating layer for Codex: reusable skill and AGENTS guidance for deep diagnosis, review, and architecture decisions.",
+  "author": {
+    "name": "Local"
+  },
+  "license": "MIT",
+  "keywords": [
+    "opus",
+    "fable",
+    "codex",
+    "skills",
+    "review"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Opus Fable Performance",
+    "shortDescription": "Maximum-quality operating mode for Opus-style review and diagnosis.",
+    "longDescription": "Adds a reusable Codex skill for high-stakes diagnosis, architecture review, research verification, and final quality gates where correctness matters more than token efficiency.",
+    "developerName": "Local",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive"
+    ],
+    "defaultPrompt": [
+      "Use $opus-fable to review this diagnosis.",
+      "Use $opus-fable for an architecture decision.",
+      "Use $opus-fable as a final quality gate."
+    ],
+    "brandColor": "#4F46E5"
+  }
+}
