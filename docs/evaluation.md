@@ -1,42 +1,86 @@
-# Evaluation Plan
+# 평가 계획
 
-Use this evaluation to decide whether Opus-Fable improves outcomes rather than merely sounding more careful.
+Opus-Fable이 정말 도움이 되는지 확인하려면 “더 그럴듯하게 말하는가”가 아니라 “더 적게 틀리고, 더 좋은 결정을 내리고, 더 강하게 검증하는가”를 봐야 합니다.
 
-## Test Arms
+## 비교 대상
 
-Run each task through:
+같은 과제를 다음 다섯 방식으로 실행합니다.
 
-1. Base Sonnet or base Codex
-2. Sonnet/Codex with VFF-style short discipline
-3. Opus baseline
+1. 기본 Sonnet 또는 기본 Codex
+2. Sonnet/Codex + 짧은 VFF식 운영 규칙
+3. 기본 Opus
 4. Opus-Fable
-5. Sonnet/Codex draft with Opus reviewer
+5. Sonnet/Codex 초안 + Opus Reviewer
 
-## Task Mix
+이렇게 나눠야 두 가지를 분리해서 볼 수 있습니다.
 
-Include at least:
+첫째, Opus 자체가 강해서 좋아진 것인지 확인할 수 있습니다. 둘째, Opus-Fable 운영 규칙이 기본 Opus보다 실제로 더 좋은 결과를 내는지 확인할 수 있습니다.
 
-- intermittent production bug diagnosis
-- failing test with misleading error output
-- architecture tradeoff decision
-- security-sensitive code review
-- current API or pricing research
-- long technical document synthesis
-- migration plan with rollback risk
-- user-facing Korean explanation with exact length constraints
+## 과제 구성
 
-## Scoring
+평가 과제는 한 종류만 넣으면 안 됩니다. 다음 유형을 섞어야 합니다.
 
-Score 1 to 5 for each:
+- 간헐적 production bug 진단
+- misleading error가 있는 테스트 실패 분석
+- async/event loop 또는 concurrency 문제
+- 아키텍처 tradeoff 결정
+- 보안 민감 코드 리뷰
+- 최신 API나 가격 정보 리서치
+- 긴 기술 문서 요약과 의사결정 추출
+- 데이터 마이그레이션 계획과 rollback 설계
+- 한국어 글쓰기에서 정확한 분량 제한이 있는 작업
 
-- requirement coverage
-- use of observed clues
-- factual correctness
-- diagnosis quality
-- alternative comparison
-- verification strength
-- residual risk clarity
-- actionability
+## 채점 기준
 
-Record token usage and wall time separately. Opus-Fable is allowed to cost more; it must justify that cost through fewer missed issues, better decisions, or stronger verification.
+각 항목을 1점에서 5점으로 평가합니다.
+
+| 기준 | 설명 |
+|---|---|
+| 요구사항 충족 | 사용자가 요청한 항목을 빠뜨리지 않았는가 |
+| 단서 사용 | 프롬프트나 코드의 관찰 단서를 실제로 활용했는가 |
+| 사실 정확도 | 수치, API, 날짜, 정책, 버전이 맞는가 |
+| 진단 품질 | leading hypothesis가 모든 증상을 설명하는가 |
+| 대안 비교 | 중요한 대안을 비교하고 결정 tradeoff를 밝혔는가 |
+| 검증 강도 | 가장 강한 실용 검증을 했거나 제시했는가 |
+| 잔여 위험 | 아직 모르는 점과 바뀔 수 있는 조건을 밝혔는가 |
+| 실행 가능성 | 사용자가 바로 행동할 수 있을 만큼 구체적인가 |
+
+## 실패 패턴 기록
+
+점수만 기록하면 개선이 어렵습니다. 각 답변에서 다음 실패 패턴도 기록합니다.
+
+- 그럴듯하지만 근거 없는 단정
+- 흔한 원인 나열에 그친 진단
+- 관찰된 단서를 설명하지 못한 가설
+- 검증 없이 완료 선언
+- 대안 비교 없는 추천
+- 최신성이 필요한데 출처 확인 없음
+- 사용자가 실행할 수 없는 모호한 결론
+
+## 비용과 시간 기록
+
+Opus-Fable은 비용 절약 모드가 아니므로 토큰 수가 늘어나는 것은 실패가 아닙니다. 다만 더 쓴 비용이 정당화되는지는 확인해야 합니다.
+
+기록할 항목은 다음과 같습니다.
+
+- 입력 토큰
+- 출력 토큰
+- wall time
+- 사용한 도구 호출 수
+- 테스트나 검증 명령 수
+- 리뷰 후 수정된 주요 결함 수
+
+## 성공 기준
+
+Opus-Fable이 성공하려면 다음 중 하나 이상을 보여야 합니다.
+
+- 기본 Opus보다 중요한 누락이나 오류가 줄어든다.
+- 장애 진단에서 leading hypothesis의 설명력이 좋아진다.
+- 아키텍처 결정에서 tradeoff가 더 분명해진다.
+- 배포 전 리뷰에서 실제 위험을 더 많이 잡는다.
+- 같은 비용 증가 대비 재작업 횟수가 줄어든다.
+
+## 결론
+
+Opus-Fable 평가는 “답변이 더 길어졌는가”가 아니라 “더 깊게 보고, 더 정확히 판단하고, 더 강하게 검증했는가”를 측정해야 합니다. 이 기준을 통과하지 못하면 Opus-Fable은 단순한 문체 프롬프트일 뿐이고, 통과한다면 중요한 작업에서 사용할 가치가 있는 운영 레이어입니다.
 

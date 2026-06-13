@@ -1,49 +1,86 @@
-# Routing Guide
+# 라우팅 가이드
 
-## Use Sonnet or Codex First
+이 문서는 어떤 작업을 Codex/Sonnet으로 처리하고, 어떤 작업을 Opus-Fable로 직접 처리하며, 언제 Opus Reviewer를 붙일지 결정하기 위한 기준입니다.
 
-Use a cheaper first pass when:
+## 기본 원칙
 
-- the implementation path is straightforward
-- the task is documentation, formatting, or routine refactoring
-- the main challenge is execution volume rather than deep judgment
-- verification is easy and deterministic
+모든 작업에 Opus를 처음부터 쓰는 것은 품질 면에서는 안전하지만, 항상 최적은 아닙니다. 많은 작업은 실행력이 중요하고 검증이 명확합니다. 이런 작업은 Codex나 Sonnet으로 빠르게 처리한 뒤 테스트로 확인하면 충분합니다.
 
-Recommended route:
+반대로 어떤 작업은 첫 가설이 틀리면 이후 작업 전체가 틀어집니다. 원인이 미묘하거나, 결정이 되돌리기 어렵거나, 보안·데이터 손실·비용 위험이 있으면 처음부터 Opus-Fable을 쓰는 것이 낫습니다.
 
-```text
-Sonnet/Codex -> local tests -> Opus reviewer if risk remains
-```
+## Codex 또는 Sonnet을 먼저 쓰는 경우
 
-## Use Opus-Fable Directly
+다음 상황에서는 Codex나 Sonnet으로 1차 작업을 진행하는 것이 좋습니다.
 
-Use Opus-Fable as the primary worker when:
+- 구현 경로가 명확한 기능 추가
+- 단순 버그 수정
+- README, 문서, 주석, 포맷 정리
+- 테스트 추가나 타입 오류 수정
+- 반복적인 파일 변환이나 구조 정리
+- 실패해도 쉽게 되돌릴 수 있는 작업
+- 검증 명령이 명확한 작업
 
-- the diagnosis depends on subtle clues
-- the domain is unfamiliar or layered
-- an architecture decision will be expensive to reverse
-- a security, privacy, financial, legal, or data-loss risk is present
-- the user asks for maximum performance
-- a prior answer feels plausible but not explanatory
-
-Recommended route:
+추천 흐름은 다음과 같습니다.
 
 ```text
-Opus-Fable -> decisive inspection -> implementation or recommendation -> strongest practical verification
+Codex/Sonnet 1차 작업
+-> 테스트/빌드/스모크 체크
+-> 위험이 남으면 Opus Reviewer
 ```
 
-## Use Opus Reviewer
+이 방식의 장점은 실행 속도와 품질을 동시에 잡는 것입니다. Opus는 모든 코드를 처음부터 작성하기보다, 위험이 남은 부분을 검토하는 데 쓰면 효율적입니다.
 
-Use the reviewer when a draft or implementation already exists and the question is "is this actually good enough?"
+## Opus-Fable을 직접 쓰는 경우
 
-The reviewer should inspect for:
+다음 상황에서는 처음부터 Opus-Fable을 사용하는 것이 좋습니다.
 
-- missing requirements
-- wrong facts or stale assumptions
-- unexplained clues
-- unsafe actions
-- weak tests
-- materially better alternatives
+- 간헐적 장애, race condition, async/event loop, 분산 시스템 문제
+- 로그나 증상이 서로 모순되어 보이는 문제
+- 원인 후보가 많고 단서 해석이 중요한 진단
+- 아키텍처 변경처럼 되돌리기 비싼 결정
+- 보안, 개인정보, 권한, 결제, 금융, 법적 위험이 있는 작업
+- 데이터 마이그레이션이나 삭제처럼 실패 비용이 큰 작업
+- 최신 API, 가격, 정책, 모델 정보처럼 현재성이 중요한 리서치
+- 사용자가 명시적으로 “최고 성능”, “깊게”, “Opus로”, “효율보다 성능”을 요구한 경우
 
-The reviewer should not rewrite style or expand scope unless the finding changes correctness.
+추천 흐름은 다음과 같습니다.
+
+```text
+Opus-Fable 직접 사용
+-> 단서 기반 가설 수립
+-> 결정적 측정 또는 소스 확인
+-> 대안 비교
+-> 구현 또는 결론
+-> 가장 강한 실용 검증
+```
+
+## Opus Reviewer를 붙이는 경우
+
+Opus Reviewer는 초안을 새로 쓰는 에이전트가 아닙니다. 품질 게이트입니다. 이미 답변, 구현 계획, 코드 변경, 리서치 요약이 있을 때 다음 항목만 검사합니다.
+
+- 사용자 요구사항 누락
+- 사실, 수치, API, 버전 오류
+- 설명하지 못한 단서
+- 위험하거나 되돌리기 어려운 추천
+- 테스트나 검증 부족
+- 결정을 바꿀 만큼 더 나은 대안
+
+리뷰어는 문체를 다듬는 역할이 아닙니다. 문체가 정확도나 의사결정 품질을 해치지 않는다면 건드리지 않는 것이 좋습니다.
+
+## 추천 라우팅 표
+
+| 작업 유형 | 추천 경로 | 이유 |
+|---|---|---|
+| 단순 구현 | Codex/Sonnet -> 테스트 | 실행 경로가 명확하고 검증 가능 |
+| 문서 정리 | Codex/Sonnet | 깊은 추론보다 처리량이 중요 |
+| 일반 코드 리뷰 | Codex/Sonnet 리뷰 -> 필요 시 Opus Reviewer | 비용 대비 충분한 품질 |
+| 보안 리뷰 | Opus-Fable 또는 Opus Reviewer | 놓친 위험의 비용이 큼 |
+| 장애 진단 | Opus-Fable | 단서 해석과 가설 품질이 중요 |
+| 아키텍처 결정 | Opus-Fable | 대안 비교와 되돌림 비용 판단 필요 |
+| 배포 전 최종 점검 | Codex/Sonnet 작업 -> Opus Reviewer | 품질 게이트로 적합 |
+| 최신 문서 기반 리서치 | Opus-Fable | 1차 출처 확인과 해석 필요 |
+
+## 결론
+
+Opus-Fable은 “항상 Opus를 쓰자”는 규칙이 아닙니다. 핵심은 작업을 나누는 것입니다. 실행이 중요한 작업은 Codex/Sonnet으로 빠르게 처리하고, 판단이 중요한 작업은 Opus-Fable로 깊게 처리합니다.
 

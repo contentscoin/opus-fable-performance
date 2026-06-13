@@ -1,6 +1,6 @@
 {
   "name": "local-opus-fable",
-  "description": "Local Claude Code marketplace for Opus Fable Performance",
+  "description": "Opus Fable Performance 로컬 Claude Code 마켓플레이스",
   "owner": {
     "name": "Local"
   },
@@ -8,8 +8,7 @@
     {
       "name": "opus-fable-performance",
       "source": "./",
-      "description": "Maximum-performance Opus operating layer with skill, reviewer agent, output style, and long-session reminder hook."
+      "description": "스킬, 리뷰어 에이전트, output style, 장기 세션 리마인더 훅을 포함한 Opus 최고 성능 운영 레이어."
     }
   ]
 }
-

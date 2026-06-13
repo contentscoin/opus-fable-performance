@@ -1,7 +1,7 @@
 {
   "name": "opus-fable-performance",
   "version": "0.1.0",
-  "description": "Maximum-performance Opus operating layer for Codex: reusable skill and AGENTS guidance for deep diagnosis, review, and architecture decisions.",
+  "description": "Codex용 Opus 최고 성능 운영 레이어: 깊은 진단, 리뷰, 아키텍처 결정을 위한 재사용 skill과 AGENTS 지침.",
   "author": {
     "name": "Local"
   },
@@ -11,13 +11,14 @@
     "fable",
     "codex",
     "skills",
-    "review"
+    "review",
+    "korean"
   ],
   "skills": "./skills/",
   "interface": {
     "displayName": "Opus Fable Performance",
-    "shortDescription": "Maximum-quality operating mode for Opus-style review and diagnosis.",
-    "longDescription": "Adds a reusable Codex skill for high-stakes diagnosis, architecture review, research verification, and final quality gates where correctness matters more than token efficiency.",
+    "shortDescription": "Opus식 깊은 리뷰와 진단을 위한 최고 품질 운영 모드.",
+    "longDescription": "토큰 효율보다 정확도가 중요한 고위험 진단, 아키텍처 리뷰, 리서치 검증, 최종 품질 게이트에 사용할 수 있는 Codex skill과 AGENTS 지침을 제공합니다.",
     "developerName": "Local",
     "category": "Productivity",
     "capabilities": [

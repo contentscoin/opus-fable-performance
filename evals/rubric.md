@@ -1,36 +1,36 @@
-# Opus-Fable Rubric
+# Opus-Fable 평가 루브릭
 
-Score each criterion from 1 to 5.
+각 기준은 1점에서 5점으로 평가한다.
 
-## Requirement Coverage
+## 요구사항 충족
 
-Does the answer satisfy every explicit user request and the implied constraints?
+사용자의 명시적 요청과 암묵적 제약을 빠뜨리지 않았는가.
 
-## Evidence Use
+## 단서 사용
 
-Does the answer use the observed clues instead of falling back to generic explanations?
+일반론이나 흔한 원인에 기대지 않고, 프롬프트·로그·코드·수치에 있는 관찰 단서를 실제로 활용했는가.
 
-## Correctness
+## 사실 정확도
 
-Are facts, numbers, APIs, dates, and assumptions accurate or properly qualified?
+수치, API 동작, 날짜, 버전, 정책, 가격, 출처가 정확한가. 확실하지 않은 사실은 적절히 한계를 표시했는가.
 
-## Diagnosis Quality
+## 진단 품질
 
-Does the leading hypothesis explain all known symptoms? Does the answer distinguish symptom, cause, evidence, and fix?
+leading hypothesis가 알려진 증상을 모두 설명하는가. 증상, 원인, 근거, 수정 방향을 구분했는가.
 
-## Alternative Comparison
+## 대안 비교
 
-For decisions, does the answer compare the serious alternatives and explain the deciding tradeoff?
+의사결정 문제에서 중요한 대안을 비교했는가. 추천을 결정하는 tradeoff를 분명히 밝혔는가.
 
-## Verification Strength
+## 검증 강도
 
-Does the answer run or propose the strongest practical check, not just the easiest superficial check?
+가장 쉬운 확인이 아니라, 실제로 결론을 지지할 수 있는 가장 강한 실용 검증을 했거나 제안했는가.
 
-## Residual Risk
+## 잔여 위험
 
-Does the answer state what remains uncertain and what would change the decision?
+아직 모르는 점, 실패 가능성, 결론이 바뀔 수 있는 조건을 정직하게 밝혔는가.
 
-## Actionability
+## 실행 가능성
 
-Can the user act on the answer without decoding shorthand or filling in missing steps?
+사용자가 다음 행동을 바로 취할 수 있을 만큼 구체적인가. 약어, 토막문장, 모호한 결론에 기대지 않았는가.
 

@@ -1,57 +1,79 @@
-# Research Notes
+# 연구 노트
 
-## Source Chain
+이 문서는 `opus-fable-performance`가 왜 기존 VFF를 그대로 복사하지 않고 Opus 전용 구조로 다시 설계됐는지 설명합니다.
 
-`itsinseong/value-for-fable` is a public GitHub repository described as a Claude Code project that aims to get Fable-like quality at Sonnet cost. The GitHub repository API reported `"fork": false` when inspected on 2026-06-13, so it is not marked as a fork by GitHub.
+## 1. 출처 체인
 
-The repository README identifies the Fable operating-structure source as:
+분석한 출처는 세 단계입니다.
+
+첫째, `itsinseong/value-for-fable`은 Claude Code에서 Sonnet을 Fable 5처럼 운용하기 위한 공개 저장소입니다. GitHub API로 확인했을 때 이 저장소는 `"fork": false`로 표시됐습니다. 즉 GitHub 메타데이터 기준으로는 다른 저장소의 fork가 아니라 독립 저장소입니다.
+
+둘째, 해당 README는 Fable 운영 구조의 원본 출처로 `elder-plinius/CL4R1T4S/ANTHROPIC/CLAUDE-FABLE-5.md`를 명시합니다. README 설명에 따르면 VFF의 8섹션 구조는 이 공개 Fable 5 시스템 프롬프트에서 운영 원칙을 관찰해 독립적으로 재구성한 것입니다.
+
+셋째, 이 저장소는 VFF의 구현 텍스트를 복사하지 않고, 그 문제의식을 Opus 목적에 맞게 재설계했습니다. `value-for-fable`에 라이선스 파일이 없었기 때문에 구현 문구나 파일 구조를 그대로 재배포하지 않고, 출처를 밝힌 새 설계로 만들었습니다.
+
+## 2. VFF에서 배울 점
+
+VFF의 핵심 장점은 모델 성능을 추상적으로 말하지 않고, 실제 행동 규칙으로 바꾼다는 점입니다. 좋은 모델을 쓰더라도 다음 규칙이 없으면 결과가 흔들립니다.
+
+- 첫 문장에 결론을 두는가
+- 단서를 실제로 사용해 가설을 좁히는가
+- 고치기 전에 측정 지점을 제시하는가
+- 완료 전에 검증하는가
+- 도구 호출을 규율 있게 쓰는가
+- 코드 변경 범위를 지키는가
+- 출처가 필요한 사실을 확인하는가
+- 불필요한 장황함을 줄이는가
+
+이 원칙들은 Sonnet에만 유용한 것이 아닙니다. Opus에도 유용합니다. 다만 Opus에서는 목적이 달라져야 합니다.
+
+## 3. Opus에 그대로 적용하면 안 되는 이유
+
+기존 VFF는 가성비 프로젝트입니다. Sonnet을 Fable처럼 보이게 만들고, 출력 토큰을 줄이며, 불필요한 설명을 자르는 방향이 강합니다. 이 방향은 Sonnet에서는 합리적입니다. Sonnet은 비용이 낮고, 좋은 운영 규칙을 붙이면 많은 정형 작업에서 충분히 강해집니다.
+
+하지만 Opus는 사용 목적이 다릅니다. Opus를 쓰는 순간 사용자는 보통 비용보다 품질을 원합니다. 이때 “간결하게”, “토큰을 아껴라”, “꼬리 제안을 줄여라” 같은 규칙이 너무 강하면 Opus의 장점이 줄어듭니다.
+
+Opus는 다음에 강합니다.
+
+- 더 많은 단서를 동시에 유지하기
+- 얕은 첫 가설을 버리고 더 설명력 높은 가설 찾기
+- 여러 아키텍처 후보의 tradeoff 비교하기
+- 위험한 결정의 실패 모드 보기
+- 리뷰어로서 놓친 요구사항과 검증 공백 찾기
+
+따라서 Opus용 레이어는 비용 절약이 아니라 성능 잠금 해제가 목적이어야 합니다.
+
+## 4. 목적함수 전환
+
+이 저장소의 목적함수는 다음과 같습니다.
 
 ```text
-elder-plinius/CL4R1T4S/ANTHROPIC/CLAUDE-FABLE-5.md
+정확도 > 깊이 > 검증 강도 > 의사결정 품질 > 간결성 > 토큰 절약
 ```
 
-The README says the VFF eight-section structure was observed from that public Fable 5 system prompt and independently reconstructed. This repo follows that attribution chain but does not copy VFF implementation text.
+간결성을 버린다는 뜻은 아닙니다. 의미 없는 장황함은 여전히 줄입니다. 다만 결정을 바꿀 수 있는 근거, caveat, 반례, 대안 비교, 검증 결과는 줄이지 않습니다.
 
-## What VFF Gets Right
+## 5. Opus-Fable의 핵심 설계
 
-The VFF pattern is useful because it turns broad model quality into operational behavior:
+Opus-Fable은 세 가지 구성으로 나뉩니다.
 
-- answer-first communication
-- clue-driven diagnosis
-- measurement before fix
-- verification before completion claims
-- disciplined tool use
-- scoped code changes
-- source-aware research
-- output trimming that removes non-decision details
+`output-styles/opus-fable.md`는 Claude Code에서 상시 적용하는 성능 모드입니다. Opus를 기본으로 쓰면서 모든 답변에 깊이, 검증, 대안 비교 규율을 걸고 싶을 때 사용합니다.
 
-These are not Sonnet-specific. They are useful for Opus too.
+`skills/opus-fable/SKILL.md`는 특정 작업에서만 발동하는 스킬입니다. 어려운 진단, 아키텍처 결정, 고위험 리뷰처럼 “이번 턴은 최고 품질로” 처리하고 싶을 때 적합합니다.
 
-## Why Opus Needs a Different Objective
+`agents/opus-reviewer.md`는 최종 품질 게이트입니다. 초안을 다시 쓰는 역할이 아니라, 놓친 요구사항, 틀린 사실, 설명 안 된 단서, 위험한 추천, 약한 테스트, 더 나은 대안을 찾는 역할입니다.
 
-The original VFF objective is cost-performance: make Sonnet behave more like Fable while spending less. Opus should not inherit that goal. If a user selects Opus, they usually want the stronger model to spend more thought where it matters.
+## 6. 실제 기대 효과
 
-Therefore this repo changes the objective from:
+Opus-Fable을 적용하면 답변이 단순히 더 길어지는 것이 목표가 아닙니다. 목표는 다음 실패를 줄이는 것입니다.
 
-```text
-Fable-like quality at Sonnet cost
-```
+- 원인 후보를 나열했지만 실제 단서를 쓰지 않는 답변
+- 아키텍처 추천은 했지만 왜 그 대안이 이기는지 설명하지 않는 답변
+- 테스트나 빌드 없이 완료를 선언하는 코드 작업
+- 최신 문서 확인이 필요한데 기억으로 답하는 리서치
+- 배포·마이그레이션·보안 변경에서 rollback과 실패 모드를 놓치는 계획
 
-to:
+## 7. 결론
 
-```text
-Maximum quality from Opus through disciplined investigation, verification, and review.
-```
-
-## Official Extension Surface Checked
-
-- Claude Code plugins can bundle skills, agents, hooks, MCP servers, LSP servers, and monitors.
-- Claude Code output styles modify the system prompt and can preserve built-in coding instructions with `keep-coding-instructions: true`.
-- Claude Code hooks run at lifecycle events and can receive JSON on stdin.
-- Codex reads `AGENTS.md` files and supports reusable `SKILL.md` skills with progressive disclosure.
-- Codex subagents are available but are explicit and cost more than single-agent runs.
-
-## Practical Conclusion
-
-Opus-Fable should be a performance guardrail, not a cost guardrail. Its best use is direct Opus work on hard problems and reviewer-pass work after a cheaper first draft.
+Opus-Fable은 VFF의 “운영 구조를 모델에 입힌다”는 발상은 계승하지만, “싸게 쓰기”라는 목표는 버립니다. Opus에서는 성능, 검증, 깊이, 판단 품질이 중심입니다. 그래서 이 저장소는 `Value-for-Fable`의 Opus 포팅이 아니라, **Opus 전용 최고 성능 운영 레이어**입니다.
 

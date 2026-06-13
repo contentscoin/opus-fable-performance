@@ -1,7 +1,7 @@
 {
   "name": "opus-fable-performance",
   "version": "0.1.0",
-  "description": "Maximum-performance Opus operating layer: deep diagnosis, decisive verification, evidence-backed recommendations, and Opus reviewer workflows.",
+  "description": "Opus 최고 성능 운영 레이어: 깊은 진단, 결정적 검증, 근거 기반 추천, Opus 리뷰어 워크플로.",
   "author": {
     "name": "Local",
     "url": "https://github.com/local"
@@ -15,7 +15,7 @@
     "claude-code",
     "output-style",
     "reviewer",
-    "performance"
+    "performance",
+    "korean"
   ]
 }
-
