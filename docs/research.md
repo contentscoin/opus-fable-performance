@@ -1,6 +1,6 @@
 # 연구 노트
 
-이 문서는 `opus-fable-performance`가 왜 기존 VFF를 그대로 복사하지 않고 Opus 전용 구조로 다시 설계됐는지 설명합니다.
+이 문서는 `opus-fable-performance`가 왜 기존 VFF를 그대로 복사하지 않고 Opus 전용 구조로 다시 설계됐는지, 그리고 v0.2에서 왜 `fablize`식 절차형 harness를 받아들였는지 설명합니다.
 
 ## 1. 출처 체인
 
@@ -11,6 +11,8 @@
 둘째, 해당 README는 Fable 운영 구조의 원본 출처로 `elder-plinius/CL4R1T4S/ANTHROPIC/CLAUDE-FABLE-5.md`를 명시합니다. README 설명에 따르면 VFF의 8섹션 구조는 이 공개 Fable 5 시스템 프롬프트에서 운영 원칙을 관찰해 독립적으로 재구성한 것입니다.
 
 셋째, 이 저장소는 VFF의 구현 텍스트를 복사하지 않고, 그 문제의식을 Opus 목적에 맞게 재설계했습니다. `value-for-fable`에 라이선스 파일이 없었기 때문에 구현 문구나 파일 구조를 그대로 재배포하지 않고, 출처를 밝힌 새 설계로 만들었습니다.
+
+넷째, `fivetaku/fablize`는 Opus가 작업을 끝까지 수행하도록 completion, evidence, verification을 절차로 강제하는 Claude Code plugin입니다. 이 저장소는 fablize의 공개 아이디어 중 “검증된 절차만 하네스로 옮긴다”는 관점을 참고하되, 코드와 문구는 Opus-Fable 목적에 맞게 새로 작성했습니다.
 
 ## 2. VFF에서 배울 점
 
@@ -55,13 +57,21 @@ Opus는 다음에 강합니다.
 
 ## 5. Opus-Fable의 핵심 설계
 
-Opus-Fable은 세 가지 구성으로 나뉩니다.
+Opus-Fable은 v0.2 기준 다섯 가지 구성으로 나뉩니다.
 
 `output-styles/opus-fable.md`는 Claude Code에서 상시 적용하는 성능 모드입니다. Opus를 기본으로 쓰면서 모든 답변에 깊이, 검증, 대안 비교 규율을 걸고 싶을 때 사용합니다.
 
 `skills/opus-fable/SKILL.md`는 특정 작업에서만 발동하는 스킬입니다. 어려운 진단, 아키텍처 결정, 고위험 리뷰처럼 “이번 턴은 최고 품질로” 처리하고 싶을 때 적합합니다.
 
 `agents/opus-reviewer.md`는 최종 품질 게이트입니다. 초안을 다시 쓰는 역할이 아니라, 놓친 요구사항, 틀린 사실, 설명 안 된 단서, 위험한 추천, 약한 테스트, 더 나은 대안을 찾는 역할입니다.
+
+`packs/`는 작업별 절차입니다. 디버깅, 렌더/실행 검증, evidence gate, reviewer gate, capability escalation을 분리해 필요한 경우에만 읽습니다.
+
+`hooks/router.sh`는 요청 신호를 보고 가장 작은 matching pack만 주입합니다. 모든 규칙을 항상 넣지 않는 것이 핵심입니다.
+
+`scripts/of_goals.py`는 멀티스텝 작업의 evidence ledger입니다. 각 단계는 증거가 있어야 완료되고, 마지막 단계는 검증 명령과 결과가 있어야 완료됩니다.
+
+`hooks/finish-the-work.sh`는 opt-in 조기 종료 방지 hook입니다. “하겠다”라고 말하고 실제 작업을 하지 않은 경우를 막지만, false positive를 피하기 위해 `.opus-fable/strict-stop` 파일이 있을 때만 동작합니다.
 
 ## 6. 실제 기대 효과
 
@@ -75,5 +85,4 @@ Opus-Fable을 적용하면 답변이 단순히 더 길어지는 것이 목표가
 
 ## 7. 결론
 
-Opus-Fable은 VFF의 “운영 구조를 모델에 입힌다”는 발상은 계승하지만, “싸게 쓰기”라는 목표는 버립니다. Opus에서는 성능, 검증, 깊이, 판단 품질이 중심입니다. 그래서 이 저장소는 `Value-for-Fable`의 Opus 포팅이 아니라, **Opus 전용 최고 성능 운영 레이어**입니다.
-
+Opus-Fable은 VFF의 “운영 구조를 모델에 입힌다”는 발상과 fablize의 “검증된 절차만 하네스로 강제한다”는 관점을 함께 가져갑니다. 하지만 “싸게 쓰기”라는 목표는 버립니다. Opus에서는 성능, 검증, 깊이, 판단 품질이 중심입니다. 그래서 이 저장소는 `Value-for-Fable`의 단순 Opus 포팅이 아니라, **Opus 전용 최고 성능 절차형 운영 레이어**입니다.

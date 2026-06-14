@@ -8,7 +8,7 @@
     {
       "name": "opus-fable-performance",
       "source": "./",
-      "description": "스킬, 리뷰어 에이전트, output style, 장기 세션 리마인더 훅을 포함한 Opus 최고 성능 운영 레이어."
+      "description": "스킬, 리뷰어 에이전트, output style, 작업별 router, evidence gate, 장기 세션 리마인더 훅을 포함한 Opus 최고 성능 운영 레이어."
     }
   ]
 }

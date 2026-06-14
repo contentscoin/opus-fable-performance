@@ -13,6 +13,8 @@ Sonnet-VFF: 낮은 비용으로 Fable식 행동 패턴을 흉내낸다.
 Opus-Fable: 비용보다 정확도, 깊이, 검증, 의사결정 품질을 우선한다.
 ```
 
+v0.2부터는 여기에 `fablize`에서 배운 절차형 harness 관점을 더했습니다. 즉, 좋은 말을 더 많이 넣는 프롬프트가 아니라 **작업별 router, evidence gate, 실행/렌더 검증, 조기 종료 방지**를 갖춘 운영 장치로 확장했습니다.
+
 ## 무엇을 해결하나
 
 대형 모델도 실제 작업에서는 자주 얕게 끝납니다. 예를 들어 간헐적 500 오류를 보고도 “DB 연결 문제, 메모리 부족, 코드 버그”처럼 후보를 동급으로 나열하거나, 아키텍처 결정에서 진짜 tradeoff를 비교하지 않고 한 방향을 추천하거나, 코드 수정 후 테스트 없이 “완료”라고 말할 수 있습니다.
@@ -44,7 +46,23 @@ opus-fable-performance/
 │   └── opus-fable.md            # Claude Code 상시 Output Style
 ├── hooks/
 │   ├── hooks.json               # Claude Code 훅 연결
+│   ├── router.sh                # 작업 신호별 절차 pack 자동 주입
+│   ├── finish-the-work.sh       # opt-in 조기 종료 방지 Stop hook
 │   └── opus-reminder.sh         # 긴 세션에서 운영 규칙을 다시 상기
+├── packs/
+│   ├── investigation-protocol.ko.md
+│   ├── verification-grounding.ko.md
+│   ├── evidence-gate.ko.md
+│   ├── reviewer-gate.ko.md
+│   └── capability-escalation.ko.md
+├── scripts/
+│   ├── of_goals.py              # evidence gate용 goal ledger
+│   └── validate_repo.py
+├── setup/
+│   ├── install-codex.ps1
+│   ├── install-claude.sh
+│   ├── enable-strict-stop.sh
+│   └── disable-strict-stop.sh
 ├── .agents/skills/opus-fable/
 │   └── SKILL.md                 # Codex용 standalone skill
 ├── codex/
@@ -56,9 +74,62 @@ opus-fable-performance/
 ├── evals/
 │   ├── tasks.jsonl              # 벤치마크 seed task
 │   └── rubric.md                # 평가 루브릭
-└── scripts/
-    └── validate_repo.py         # 구조 검증 스크립트
 ```
+
+## v0.2에서 추가된 절차형 harness
+
+### 1. 작업별 Router
+
+`hooks/router.sh`는 Claude Code의 `UserPromptSubmit` 시점에서 사용자의 요청을 보고 필요한 절차만 주입합니다. 예를 들어 “버그”, “오류”, “failing”이 있으면 조사 프로토콜을, “HTML”, “SVG”, “UI”, “화면”이 있으면 렌더/실행 검증 pack을 넣습니다.
+
+핵심은 모든 규칙을 항상 넣지 않는 것입니다. 작은 작업에는 baseline만 두고, 신호가 있는 작업에만 가장 작은 matching discipline을 적용합니다.
+
+### 2. Evidence Gate
+
+`scripts/of_goals.py`는 멀티스텝 작업을 `.opus-fable/`에 기록합니다. 각 단계는 evidence 없이는 `complete`가 될 수 없고, 마지막 단계는 `--verify-cmd`와 `--verify-evidence` 없이는 완료할 수 없습니다.
+
+예시:
+
+```bash
+python scripts/of_goals.py create --brief "Opus-Fable v0.2 업그레이드" \
+  --goal "설계::fablize에서 이식할 절차를 정한다" \
+  --goal "구현::router와 evidence gate를 추가한다" \
+  --goal "검증::validator와 smoke test를 실행한다"
+
+python scripts/of_goals.py next
+python scripts/of_goals.py checkpoint --id G001 --status complete --evidence "라우팅/게이트/훅 범위 확정"
+```
+
+### 3. Render/Executable Verification
+
+`packs/verification-grounding.ko.md`는 화면, SVG, UI, 게임, 차트, 실행 스크립트처럼 실제 결과를 봐야 맞는 산출물에 적용합니다. 정적 문법 검사만으로는 “보인다/동작한다”를 증명할 수 없으므로, 실제 renderer나 실행 환경에서 관찰해야 합니다.
+
+### 4. Optional Strict Stop
+
+`hooks/finish-the-work.sh`는 조기 종료 방지용 Stop hook입니다. 다만 false positive 가능성이 있어 기본값은 opt-in입니다. 프로젝트에서 사용하려면 다음을 실행합니다.
+
+```bash
+bash setup/enable-strict-stop.sh
+```
+
+끄려면:
+
+```bash
+bash setup/disable-strict-stop.sh
+```
+
+## 옮길 수 있는 것과 없는 것
+
+`fablize`에서 특히 중요한 통찰은 “하네스는 모델의 천장을 올리지 못한다”는 점입니다. Opus-Fable도 이 경계를 지킵니다.
+
+| 구분 | Opus-Fable에서 다루는 방식 |
+|---|---|
+| 검증 절차 | 실행, 렌더, 테스트, 로그 확인을 완료 조건으로 묶는다 |
+| 멀티스텝 완주 | goal ledger와 evidence gate로 완료를 증거에 연결한다 |
+| 체계적 조사 | 재현, 경쟁 가설, 증거 수집, 인과사슬 추적을 강제한다 |
+| 조기 종료 | opt-in Stop hook으로 “하겠다”만 하고 멈추는 것을 막는다 |
+| 모델 고유 발견력 | 절차로 흉내내지 않고 에스컬레이션 기준으로 다룬다 |
+| 열린 창작 디테일 | 모델 선택 또는 사람 검토 영역으로 남긴다 |
 
 ## 적용 방식 1: Claude Code에서 사용
 
@@ -78,6 +149,8 @@ cp skills/opus-fable/SKILL.md ~/.claude/skills/opus-fable/SKILL.md
 cp agents/opus-reviewer.md ~/.claude/agents/opus-reviewer.md
 cp output-styles/opus-fable.md ~/.claude/output-styles/opus-fable.md
 cp hooks/opus-reminder.sh ~/.claude/hooks/opus-reminder.sh
+cp hooks/router.sh ~/.claude/hooks/router.sh
+cp hooks/finish-the-work.sh ~/.claude/hooks/finish-the-work.sh
 chmod +x ~/.claude/hooks/opus-reminder.sh
 ```
 
@@ -95,6 +168,13 @@ Codex에는 두 층으로 적용하는 것을 권장합니다.
 mkdir -p .agents/skills
 cp -r /absolute/path/to/opus-fable-performance/.agents/skills/opus-fable .agents/skills/
 cp /absolute/path/to/opus-fable-performance/codex/AGENTS.opus-fable.md AGENTS.md
+```
+
+PowerShell 설치 스크립트도 포함했습니다.
+
+```powershell
+.\setup\install-codex.ps1          # 현재 프로젝트에 설치
+.\setup\install-codex.ps1 -Global  # 전역 Codex skill로 설치
 ```
 
 ## 언제 Opus-Fable을 직접 쓰나
@@ -132,6 +212,7 @@ Codex/Sonnet 초안 -> Opus Reviewer -> 수정 -> 검증
 다만 아이디어의 출처 체인은 명확히 기록합니다.
 
 - `itsinseong/value-for-fable`: Sonnet에 Fable식 운영 구조를 입혀 비용 대비 품질을 높이는 프로젝트입니다.
+- `fivetaku/fablize`: Opus가 작업을 끝까지 수행하도록 completion, evidence, verification을 절차로 강제하는 Claude Code plugin입니다.
 - `elder-plinius/CL4R1T4S/ANTHROPIC/CLAUDE-FABLE-5.md`: VFF README가 Fable 5 운영 구조 원본으로 명시한 공개 자료입니다.
 - Claude Code와 Codex 공식 문서: 플러그인, 스킬, output style, hooks, AGENTS.md, Codex skill 구조를 확인하는 데 사용했습니다.
 
@@ -143,6 +224,7 @@ Codex/Sonnet 초안 -> Opus Reviewer -> 수정 -> 검증
 
 ```bash
 python scripts/validate_repo.py
+python scripts/of_goals.py create --brief "smoke" --goal "work::do one thing" --goal "verify::verify result" --force
 python C:/Users/USER/.codex/skills/.system/skill-creator/scripts/quick_validate.py .agents/skills/opus-fable
 python C:/Users/USER/.codex/skills/.system/plugin-creator/scripts/validate_plugin.py .
 ```
@@ -152,4 +234,3 @@ python C:/Users/USER/.codex/skills/.system/plugin-creator/scripts/validate_plugi
 ## 한 줄 요약
 
 Opus-Fable은 Opus를 짧고 싸게 쓰기 위한 프롬프트가 아니라, **중요한 문제에서 Opus가 더 깊게 보고, 더 정확히 비교하고, 더 강하게 검증하게 만드는 성능 운영체계**입니다.
-

@@ -8,6 +8,8 @@
 
 반대로 어떤 작업은 첫 가설이 틀리면 이후 작업 전체가 틀어집니다. 원인이 미묘하거나, 결정이 되돌리기 어렵거나, 보안·데이터 손실·비용 위험이 있으면 처음부터 Opus-Fable을 쓰는 것이 낫습니다.
 
+v0.2에서는 라우팅이 두 층입니다. 첫 번째는 모델 라우팅입니다. Codex/Sonnet으로 충분한가, Opus-Fable이 필요한가를 결정합니다. 두 번째는 절차 라우팅입니다. 작업 신호에 따라 investigation, verification grounding, evidence gate, reviewer gate 중 무엇을 적용할지 결정합니다.
+
 ## Codex 또는 Sonnet을 먼저 쓰는 경우
 
 다음 상황에서는 Codex나 Sonnet으로 1차 작업을 진행하는 것이 좋습니다.
@@ -67,6 +69,16 @@ Opus Reviewer는 초안을 새로 쓰는 에이전트가 아닙니다. 품질 �
 
 리뷰어는 문체를 다듬는 역할이 아닙니다. 문체가 정확도나 의사결정 품질을 해치지 않는다면 건드리지 않는 것이 좋습니다.
 
+## 절차 Pack 라우팅
+
+| 신호 | 적용 pack | 목적 |
+|---|---|---|
+| 버그, 오류, 실패, traceback, 원인 미상 | `investigation-protocol.ko.md` | 재현, 경쟁 가설, 증거 수집, 인과사슬 추적 |
+| HTML, SVG, UI, 화면, 차트, 게임, 실행 스크립트 | `verification-grounding.ko.md` | 실제 실행 또는 렌더링 관찰 |
+| 끝까지, 여러 단계, 검증하면서, 완주 | `evidence-gate.ko.md` | 단계별 evidence와 final verification gate |
+| 리뷰, 최종 점검, 위험, 배포 전 | `reviewer-gate.ko.md` | 요구사항, 사실, 단서, 위험, 검증 공백 검사 |
+| 같은 문제 반복, out-of-spec 발견, 열린 창작 | `capability-escalation.ko.md` | 절차 한계 인정과 에스컬레이션 |
+
 ## 추천 라우팅 표
 
 | 작업 유형 | 추천 경로 | 이유 |
@@ -82,5 +94,4 @@ Opus Reviewer는 초안을 새로 쓰는 에이전트가 아닙니다. 품질 �
 
 ## 결론
 
-Opus-Fable은 “항상 Opus를 쓰자”는 규칙이 아닙니다. 핵심은 작업을 나누는 것입니다. 실행이 중요한 작업은 Codex/Sonnet으로 빠르게 처리하고, 판단이 중요한 작업은 Opus-Fable로 깊게 처리합니다.
-
+Opus-Fable은 “항상 Opus를 쓰자”는 규칙이 아닙니다. 핵심은 작업을 나누는 것입니다. 실행이 중요한 작업은 Codex/Sonnet으로 빠르게 처리하고, 판단이 중요한 작업은 Opus-Fable로 깊게 처리합니다. 그리고 Opus-Fable 안에서도 모든 규칙을 한꺼번에 쓰지 않고, task signal에 맞는 절차 pack만 적용합니다.

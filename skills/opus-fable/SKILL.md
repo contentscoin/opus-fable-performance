@@ -5,7 +5,7 @@ description: Maximum-performance Opus workflow for deep diagnosis, architecture 
 
 # Opus-Fable
 
-Apply the Opus-Fable operating mode to the current task. This skill is for maximum performance, not token savings.
+Apply the Opus-Fable operating mode to the current task. This skill is for maximum performance, not token savings. Use the smallest matching procedure pack instead of loading every rule at once.
 
 ## Activation
 
@@ -28,6 +28,24 @@ Then continue the task. Do not print that line when the skill is selected implic
 - Before fixing, name the most decisive practical measurement or inspection.
 - For architecture and strategy, compare serious alternatives and state the deciding tradeoff.
 - For current or unstable facts, use primary sources when possible and separate fact from inference.
+- When the task has a specific signal, read and follow the matching pack:
+  - Debugging, failing tests, unknown cause: `${CLAUDE_PLUGIN_ROOT}/packs/investigation-protocol.ko.md`.
+  - Render or executable artifacts: `${CLAUDE_PLUGIN_ROOT}/packs/verification-grounding.ko.md`.
+  - Multi-step work: `${CLAUDE_PLUGIN_ROOT}/packs/evidence-gate.ko.md`.
+  - Review or risk gate: `${CLAUDE_PLUGIN_ROOT}/packs/reviewer-gate.ko.md`.
+  - Capability ceiling: `${CLAUDE_PLUGIN_ROOT}/packs/capability-escalation.ko.md`.
+
+## Evidence Gate
+
+For 2+ sequential stories, use the local goal ledger from the repo root:
+
+```bash
+python scripts/of_goals.py create --brief "<summary>" --goal "title::objective" --goal "verification::run final checks"
+python scripts/of_goals.py next
+python scripts/of_goals.py checkpoint --id G001 --status complete --evidence "<evidence>"
+```
+
+The final goal cannot complete without `--verify-cmd` and `--verify-evidence`.
 
 ## Code Work
 

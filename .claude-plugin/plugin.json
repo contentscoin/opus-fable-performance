@@ -1,7 +1,7 @@
 {
   "name": "opus-fable-performance",
-  "version": "0.1.0",
-  "description": "Opus 최고 성능 운영 레이어: 깊은 진단, 결정적 검증, 근거 기반 추천, Opus 리뷰어 워크플로.",
+  "version": "0.2.0",
+  "description": "Opus 최고 성능 운영 레이어: 작업별 router, evidence gate, 깊은 진단 pack, 렌더 검증 pack, Opus 리뷰어 워크플로.",
   "author": {
     "name": "Local",
     "url": "https://github.com/local"
@@ -9,6 +9,9 @@
   "homepage": "https://github.com/local/opus-fable-performance",
   "repository": "https://github.com/local/opus-fable-performance",
   "license": "MIT",
+  "skills": [
+    "./skills/opus-fable"
+  ],
   "keywords": [
     "opus",
     "fable",

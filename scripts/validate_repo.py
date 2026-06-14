@@ -20,7 +20,19 @@ REQUIRED_FILES = [
     "skills/opus-fable/SKILL.md",
     "agents/opus-reviewer.md",
     "hooks/hooks.json",
+    "hooks/router.sh",
+    "hooks/finish-the-work.sh",
     "hooks/opus-reminder.sh",
+    "packs/investigation-protocol.ko.md",
+    "packs/verification-grounding.ko.md",
+    "packs/evidence-gate.ko.md",
+    "packs/reviewer-gate.ko.md",
+    "packs/capability-escalation.ko.md",
+    "scripts/of_goals.py",
+    "setup/install-codex.ps1",
+    "setup/install-claude.sh",
+    "setup/enable-strict-stop.sh",
+    "setup/disable-strict-stop.sh",
     "codex/AGENTS.opus-fable.md",
     ".agents/skills/opus-fable/SKILL.md",
     ".agents/skills/opus-fable/agents/openai.yaml",
@@ -96,4 +108,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

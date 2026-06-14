@@ -5,7 +5,7 @@ description: Maximum-performance operating workflow for Codex or Opus-style work
 
 # Opus-Fable
 
-Use this skill when quality matters more than token efficiency. It changes the operating objective from "answer efficiently" to "reach the best supported answer or change."
+Use this skill when quality matters more than token efficiency. It changes the operating objective from "answer efficiently" to "reach the best supported answer or change." If the repo includes `scripts/of_goals.py`, use it for multi-step evidence gating.
 
 ## Core Rules
 
@@ -18,6 +18,9 @@ Use this skill when quality matters more than token efficiency. It changes the o
 - For architecture or strategy, compare serious alternatives and state the deciding tradeoff.
 - For code, read before editing, keep scope controlled, and verify with the strongest practical check available.
 - For current, unstable, legal, financial, medical, pricing, API, or model claims, verify from primary sources when possible.
+- For multi-step work, create a small evidence ledger when available: `python scripts/of_goals.py create -> next -> checkpoint`. The final checkpoint needs the verification command and result.
+- For render or executable artifacts, run the artifact in its natural environment and observe the output before claiming completion.
+- For debugging, reproduce first, compare at least three hypotheses, gather evidence, trace the causal chain, and report rejected hypotheses.
 
 ## Review Mode
 
@@ -35,4 +38,3 @@ Do not rewrite the whole answer unless asked. If it passes, say it passes and na
 ## Output Contract
 
 Final responses should include the conclusion, key evidence, important caveats or tradeoffs, and verification performed. If verification could not be run, state the skipped check and why.
-
