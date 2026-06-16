@@ -20,6 +20,7 @@ REQUIRED_FILES = [
     "skills/opus-fable/SKILL.md",
     "agents/opus-reviewer.md",
     "hooks/hooks.json",
+    "hooks/claude-hooks.json",
     "hooks/codex/user_prompt_submit.py",
     "hooks/codex/pre_tool_use.py",
     "hooks/codex/post_tool_use.py",

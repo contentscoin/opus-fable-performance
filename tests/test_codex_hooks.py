@@ -165,7 +165,20 @@ class CodexHookTestCase(unittest.TestCase):
         self.assertTrue(all(output == {} for output in outputs))
         self.assertEqual(len(list(self.event_dir().glob("*.json"))), 32)
 
+    def test_codex_hooks_json_uses_portable_python_commands(self) -> None:
+        data = json.loads((ROOT / "hooks/hooks.json").read_text(encoding="utf-8"))
+        commands: list[str] = []
+        for groups in data["hooks"].values():
+            for group in groups:
+                for hook in group["hooks"]:
+                    commands.append(hook["command"])
+
+        self.assertTrue(commands)
+        self.assertTrue(all(command.startswith('python "${PLUGIN_ROOT}/hooks/codex/') for command in commands))
+        self.assertTrue(all("CLAUDE_PLUGIN_ROOT" not in command for command in commands))
+        self.assertTrue(all(":-" not in command for command in commands))
+        self.assertTrue(all(not command.startswith("bash ") for command in commands))
+
 
 if __name__ == "__main__":
     unittest.main()
-
