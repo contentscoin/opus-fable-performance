@@ -84,6 +84,8 @@ Opus-Fable이 성공하려면 다음 중 하나 이상을 보여야 합니다.
 - 같은 비용 증가 대비 재작업 횟수가 줄어든다.
 - 멀티스텝 작업에서 evidence 없는 완료가 줄어든다.
 - 렌더/실행 산출물에서 runtime-only 결함 발견률이 올라간다.
+- Codex hook 환경에서 normal/deep 작업의 검증 누락을 Stop 시점에 잡아낸다.
+- Windows 동시 PostToolUse 상황에서도 event journal이 손상 없이 기록된다.
 
 ## 결론
 

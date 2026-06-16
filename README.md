@@ -118,6 +118,34 @@ bash setup/enable-strict-stop.sh
 bash setup/disable-strict-stop.sh
 ```
 
+## v0.3에서 추가된 Codex-native evidence hook
+
+v0.3은 `Pandoll-AI/fable-ish-codex`를 참고해 Codex 플러그인 생명주기 훅을 보강한 버전입니다. 핵심 아이디어는 “좋은 지침을 적어두는 것”에서 한 걸음 더 나아가, Codex가 실제 작업 중 남긴 변경, 실패, 검증 명령을 hook이 관찰하고 Stop 시점에 완료 조건을 다시 확인하게 만드는 것입니다.
+
+다만 `fable-ish-codex`를 그대로 복사하지 않았습니다. 참고 레포의 단일 JSON ledger 방식은 Windows 동시 `PostToolUse` 상황에서 파일 교체 충돌이 날 수 있음을 확인했기 때문에, Opus-Fable v0.3은 **event journal 방식**을 사용합니다. 각 hook 실행이 고유한 JSON 이벤트 파일을 만들고, Stop hook은 마지막 사용자 프롬프트 이후의 이벤트만 모아 상태를 계산합니다. 이 방식은 여러 tool 결과가 거의 동시에 기록되어도 같은 파일을 덮어쓰지 않습니다.
+
+새로 추가된 구성은 다음과 같습니다.
+
+```text
+hooks/codex/user_prompt_submit.py  # 요청을 quick/normal/deep/blocked로 분류
+hooks/codex/pre_tool_use.py        # 좁은 범위의 파괴적 로컬 명령만 차단
+hooks/codex/post_tool_use.py       # 변경 파일, 검증 명령, 실패 신호를 이벤트로 기록
+hooks/codex/stop_gate.py           # normal/deep 작업의 검증 누락을 Stop 시점에 확인
+scripts/of_hook_core.py            # 분류, redaction, event journal, Stop 판정 공통 로직
+tests/test_codex_hooks.py          # hook wire shape, 한국어 분류, Windows 동시 기록 테스트
+```
+
+차단 정책은 의도적으로 좁습니다. `git push`, Vercel/Netlify/Firebase 배포, DB push, package publish, migration deploy, infra apply/up은 사용자가 명시적으로 요청하는 정상 실행 경로일 수 있으므로 자동 차단하지 않습니다. 대신 `rm -rf`, `git reset --hard`, `git clean -f`, `terraform destroy`, `pulumi destroy`, secret 파일 patch, 대량 delete patch처럼 되돌리기 어렵거나 범위가 위험한 작업만 막습니다.
+
+Stop hook은 다음 기준으로 동작합니다.
+
+- `quick`: 검증을 강제하지 않습니다.
+- `normal`: 파일 변경이 있으면 관련 검증 1개가 필요합니다.
+- `deep`: 배포, 인증, 보안, DB, 마이그레이션, 최고 성능 작업처럼 위험도가 높으면 관찰 가능한 exit proof가 필요합니다.
+- `blocked`: 위험 범위를 좁히기 전에는 진행하지 않습니다.
+
+무한 continuation을 막기 위해 Stop block은 최대 2회만 발생합니다. 그 이후에도 검증이 부족하면 최종 보고에 검증 공백을 밝히도록 경고만 남깁니다.
+
 ## 옮길 수 있는 것과 없는 것
 
 `fablize`에서 특히 중요한 통찰은 “하네스는 모델의 천장을 올리지 못한다”는 점입니다. Opus-Fable도 이 경계를 지킵니다.
@@ -224,12 +252,16 @@ Codex/Sonnet 초안 -> Opus Reviewer -> 수정 -> 검증
 
 ```bash
 python scripts/validate_repo.py
+python -m json.tool .codex-plugin/plugin.json
+python -m json.tool hooks/hooks.json
+python -m py_compile hooks/codex/*.py scripts/*.py tests/*.py
+python -m unittest discover -s tests
 python scripts/of_goals.py create --brief "smoke" --goal "work::do one thing" --goal "verify::verify result" --force
 python C:/Users/USER/.codex/skills/.system/skill-creator/scripts/quick_validate.py .agents/skills/opus-fable
 python C:/Users/USER/.codex/skills/.system/plugin-creator/scripts/validate_plugin.py .
 ```
 
-검증 대상은 필수 파일 존재, JSON 문법, skill frontmatter, JSONL 벤치마크 파일, Codex 플러그인 manifest 구조입니다.
+검증 대상은 필수 파일 존재, JSON 문법, skill frontmatter, JSONL 벤치마크 파일, Codex 플러그인 manifest 구조, Python hook 문법, hook 동작 계약, Windows-safe event journal 동시성입니다.
 
 ## 한 줄 요약
 

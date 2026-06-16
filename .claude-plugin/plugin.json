@@ -1,6 +1,6 @@
 {
   "name": "opus-fable-performance",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Opus 최고 성능 운영 레이어: 작업별 router, evidence gate, 깊은 진단 pack, 렌더 검증 pack, Opus 리뷰어 워크플로.",
   "author": {
     "name": "Local",

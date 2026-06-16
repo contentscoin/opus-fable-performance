@@ -8,7 +8,16 @@
 
 반대로 어떤 작업은 첫 가설이 틀리면 이후 작업 전체가 틀어집니다. 원인이 미묘하거나, 결정이 되돌리기 어렵거나, 보안·데이터 손실·비용 위험이 있으면 처음부터 Opus-Fable을 쓰는 것이 낫습니다.
 
-v0.2에서는 라우팅이 두 층입니다. 첫 번째는 모델 라우팅입니다. Codex/Sonnet으로 충분한가, Opus-Fable이 필요한가를 결정합니다. 두 번째는 절차 라우팅입니다. 작업 신호에 따라 investigation, verification grounding, evidence gate, reviewer gate 중 무엇을 적용할지 결정합니다.
+v0.3에서는 라우팅이 세 층입니다. 첫 번째는 모델 라우팅입니다. Codex/Sonnet으로 충분한가, Opus-Fable이 필요한가를 결정합니다. 두 번째는 절차 라우팅입니다. 작업 신호에 따라 investigation, verification grounding, evidence gate, reviewer gate 중 무엇을 적용할지 결정합니다. 세 번째는 Codex hook 라우팅입니다. UserPromptSubmit hook이 작업을 `quick`, `normal`, `deep`, `blocked`로 분류하고, PostToolUse/Stop hook이 검증 증거를 관찰합니다.
+
+Codex hook 모드는 다음처럼 해석합니다.
+
+| 모드 | 의미 | Stop 기준 |
+|---|---|---|
+| `quick` | 간단 설명, 읽기 전용 리뷰, 낮은 위험 | 검증 강제 없음 |
+| `normal` | 일반 구현, 수정, 테스트, 문서 외 코드 변경 | 파일 변경 시 관련 검증 1개 필요 |
+| `deep` | 배포, 보안, 인증, DB, 마이그레이션, 최고 성능 요청 | 관찰 가능한 exit proof 필요 |
+| `blocked` | 파괴적이거나 secret-bearing 범위가 불명확한 요청 | 범위를 좁히기 전 진행 금지 |
 
 ## Codex 또는 Sonnet을 먼저 쓰는 경우
 

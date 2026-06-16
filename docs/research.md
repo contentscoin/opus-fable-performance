@@ -57,7 +57,7 @@ Opus는 다음에 강합니다.
 
 ## 5. Opus-Fable의 핵심 설계
 
-Opus-Fable은 v0.2 기준 다섯 가지 구성으로 나뉩니다.
+Opus-Fable은 v0.3 기준 여섯 가지 구성으로 나뉩니다.
 
 `output-styles/opus-fable.md`는 Claude Code에서 상시 적용하는 성능 모드입니다. Opus를 기본으로 쓰면서 모든 답변에 깊이, 검증, 대안 비교 규율을 걸고 싶을 때 사용합니다.
 
@@ -72,6 +72,10 @@ Opus-Fable은 v0.2 기준 다섯 가지 구성으로 나뉩니다.
 `scripts/of_goals.py`는 멀티스텝 작업의 evidence ledger입니다. 각 단계는 증거가 있어야 완료되고, 마지막 단계는 검증 명령과 결과가 있어야 완료됩니다.
 
 `hooks/finish-the-work.sh`는 opt-in 조기 종료 방지 hook입니다. “하겠다”라고 말하고 실제 작업을 하지 않은 경우를 막지만, false positive를 피하기 위해 `.opus-fable/strict-stop` 파일이 있을 때만 동작합니다.
+
+`hooks/codex/`와 `scripts/of_hook_core.py`는 `Pandoll-AI/fable-ish-codex`에서 확인한 Codex lifecycle hook 패턴을 Opus-Fable 목적에 맞게 재구현한 계층입니다. UserPromptSubmit에서 작업 위험도를 분류하고, PreToolUse에서 좁은 범위의 파괴적 로컬 명령을 막고, PostToolUse에서 변경·검증·실패 이벤트를 기록하고, Stop에서 normal/deep 작업의 검증 누락을 다시 확인합니다.
+
+중요한 설계 차이는 ledger 저장 방식입니다. 참고 레포는 단일 JSON ledger를 갱신하지만, Windows에서 동시 PostToolUse가 같은 파일을 교체할 때 access denied가 날 수 있음을 확인했습니다. v0.3은 각 hook 호출이 고유 이벤트 파일을 남기는 event journal을 사용해 동시성 충돌을 피합니다. Stop 시점에는 마지막 사용자 prompt 이후 이벤트만 집계해 현재 작업 상태를 계산합니다.
 
 ## 6. 실제 기대 효과
 
