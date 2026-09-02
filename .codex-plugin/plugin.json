@@ -18,7 +18,7 @@
   "interface": {
     "displayName": "Opus Fable Performance",
     "shortDescription": "Maximum-performance Opus-Fable workflow for deep work and verified completion.",
-    "longDescription": "Provides Codex skills, AGENTS guidance, procedure packs, goal ledger scripts, and Codex-native hooks that classify task risk, block narrow destructive actions, record verification evidence, and review completion at Stop time.",
+    "longDescription": "Provides Codex skills, AGENTS guidance, procedure packs, goal ledger scripts, and lifecycle hooks that classify task risk and intent, block narrow destructive actions, warn before an unverified push or a test-skip edit, record verification evidence, restore state after compaction, and review completion at Stop time so a turn cannot end on a plan or an unverified change.",
     "developerName": "Local",
     "category": "Productivity",
     "capabilities": [
@@ -27,7 +27,8 @@
     "defaultPrompt": [
       "Use $opus-fable to review this diagnosis.",
       "Use $opus-fable for an architecture decision.",
-      "Use $opus-fable as a final quality gate."
+      "Use $opus-fable as a final quality gate.",
+      "Use $opus-fable to finish this end to end and verify before reporting."
     ],
     "brandColor": "#4F46E5"
   }

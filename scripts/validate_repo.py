@@ -128,6 +128,23 @@ def validate_claude_plugin_wiring() -> None:
             fail(f"router.sh references missing pack: {match}")
 
 
+def validate_skill_pack_sync() -> None:
+    """Every pack must be reachable from both skills, and neither may point at a
+    pack that does not exist. This is the gate that caught v0.4 skill drift."""
+    packs = {path.name for path in (ROOT / "packs").glob("*.ko.md")}
+    if not packs:
+        fail("packs/ contains no .ko.md files")
+    for skill in ("skills/opus-fable/SKILL.md", ".agents/skills/opus-fable/SKILL.md"):
+        text = require_file(skill).read_text(encoding="utf-8")
+        referenced = set(re.findall(r"([a-z-]+\.ko\.md)", text))
+        missing = sorted(packs - referenced)
+        if missing:
+            fail(f"{skill} does not reference these packs: {', '.join(missing)}")
+        unknown = sorted(referenced - packs)
+        if unknown:
+            fail(f"{skill} references missing packs: {', '.join(unknown)}")
+
+
 def main() -> None:
     for path in REQUIRED_FILES:
         require_file(path)
@@ -137,6 +154,7 @@ def main() -> None:
         validate_frontmatter(path)
     validate_jsonl("evals/tasks.jsonl")
     validate_claude_plugin_wiring()
+    validate_skill_pack_sync()
     print("[OK] repository structure validated")
 
 
