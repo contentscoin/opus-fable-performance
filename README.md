@@ -15,6 +15,8 @@ Opus-Fable: 비용보다 정확도, 깊이, 검증, 의사결정 품질을 우�
 
 v0.2부터는 여기에 `fablize`에서 배운 절차형 harness 관점을 더했습니다. 즉, 좋은 말을 더 많이 넣는 프롬프트가 아니라 **작업별 router, evidence gate, 실행/렌더 검증, 조기 종료 방지**를 갖춘 운영 장치로 확장했습니다.
 
+v0.3에서는 Codex 생명주기 훅으로 변경·검증·실패를 실제 이벤트로 관찰하게 했고, v0.4에서는 Claude Code의 Fable 5.1 운영 하네스를 분석해 **범위 충실, 질문과 변경의 구분, 마지막 문단 규칙, push 전 검증, PR drive-to-green, 외부 내용 처리, compaction 상태 복원**을 절차로 이식했습니다. 버전별 상세는 아래 v0.2, v0.3, v0.4 절에 있습니다.
+
 ## 무엇을 해결하나
 
 대형 모델도 실제 작업에서는 자주 얕게 끝납니다. 예를 들어 간헐적 500 오류를 보고도 “DB 연결 문제, 메모리 부족, 코드 버그”처럼 후보를 동급으로 나열하거나, 아키텍처 결정에서 진짜 tradeoff를 비교하지 않고 한 방향을 추천하거나, 코드 수정 후 테스트 없이 “완료”라고 말할 수 있습니다.
@@ -68,6 +70,9 @@ opus-fable-performance/
 │   ├── of_goals.py              # evidence gate용 goal ledger (resume/check/report 포함)
 │   ├── of_hook_core.py          # 분류, advisory, 마지막 문단 검사, event journal
 │   └── validate_repo.py
+├── tests/
+│   ├── test_codex_hooks.py      # v0.3 hook 계약과 Windows-safe 동시 기록
+│   └── test_fable_harness.py    # v0.4 intent, push gate, 마지막 문단, 복원, ledger
 ├── setup/
 │   ├── install-codex.ps1
 │   ├── install-claude.sh
@@ -218,7 +223,7 @@ Fable 5.1 하네스에는 세션 전용 기능(PR webhook 구독, 예약 체크�
 
 ## 적용 방식 1: Claude Code에서 사용
 
-Claude Code에서는 세 가지 방식으로 사용할 수 있습니다.
+Claude Code에서는 네 가지 방식으로 사용할 수 있습니다.
 
 첫 번째는 Output Style입니다. `/config -> Output style -> Opus-Fable`을 선택하면 모든 세션에서 Opus-Fable 규칙이 상시 적용됩니다. Opus를 주로 쓰고, 답변 품질과 검증 태도를 항상 올리고 싶을 때 가장 자연스럽습니다.
 
@@ -226,7 +231,9 @@ Claude Code에서는 세 가지 방식으로 사용할 수 있습니다.
 
 세 번째는 `opus-reviewer` 에이전트입니다. Sonnet, Codex, 또는 일반 Opus가 만든 초안이 있을 때 최종 품질 게이트로 사용합니다. 이 에이전트는 글 전체를 다시 쓰는 역할이 아니라, 놓친 요구사항, 틀린 사실, 설명 안 된 단서, 위험한 추천, 약한 검증, 더 나은 대안을 찾는 역할입니다.
 
-플러그인으로 설치하면 `hooks/claude-hooks.json`이 자동으로 연결됩니다. 수동 설치는 다음 스크립트를 씁니다. hook은 `packs/`와 `scripts/`를 자기 위치 기준으로 찾으므로 세 디렉터리를 함께 복사하고, 출력되는 `hooks` 블록을 `settings.json`에 넣습니다.
+네 번째는 훅입니다. 플러그인으로 설치하면 `hooks/claude-hooks.json`이 자동으로 연결되어, 요청 분류와 pack 라우팅, push gate, 마지막 문단 규칙, compaction 상태 복원이 세션 내내 동작합니다. 앞의 세 방식이 지침이라면 이 방식은 관찰과 게이트입니다.
+
+수동 설치는 다음 스크립트를 씁니다. hook은 `packs/`와 `scripts/`를 자기 위치 기준으로 찾으므로 세 디렉터리를 함께 복사하고, 출력되는 `hooks` 블록을 `settings.json`에 넣습니다.
 
 ```bash
 bash setup/install-claude.sh          # ./.claude 에 설치
@@ -304,11 +311,14 @@ Codex/Sonnet 초안 -> Opus Reviewer -> 수정 -> 검증
 
 ```bash
 python scripts/validate_repo.py
+python -m json.tool .claude-plugin/plugin.json
 python -m json.tool .codex-plugin/plugin.json
 python -m json.tool hooks/hooks.json
-python -m py_compile hooks/codex/*.py scripts/*.py tests/*.py
+python -m json.tool hooks/claude-hooks.json
+python -m py_compile hooks/*.py hooks/codex/*.py scripts/*.py tests/*.py
 python -m unittest discover -s tests
 python scripts/of_goals.py create --brief "smoke" --goal "work::do one thing" --goal "verify::verify result" --force
+bash setup/install-claude.sh
 python C:/Users/USER/.codex/skills/.system/skill-creator/scripts/quick_validate.py .agents/skills/opus-fable
 python C:/Users/USER/.codex/skills/.system/plugin-creator/scripts/validate_plugin.py .
 ```
