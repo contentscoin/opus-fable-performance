@@ -1,5 +1,15 @@
 #!/usr/bin/env python3
-"""Stop-time completion gate for Opus-Fable."""
+"""Stop-time completion gate for Opus-Fable (Codex and Claude Code).
+
+Checks, in order:
+1. blocked mode -> keep going until the risk is narrowed.
+2. Fable 5.1 last-paragraph rule -> a normal/deep turn must not end on a plan,
+   a promise, or a next-steps list for work not yet done.
+3. verification gate -> normal/deep changes need observed verification.
+
+At most MAX_STOP_BLOCKS continuations are issued per user turn; after that the
+gate only asks for the verification gap to be reported.
+"""
 from __future__ import annotations
 
 import contextlib
@@ -10,7 +20,14 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from of_hook_core import append_event, collect_state, emit_json, read_stdin_json, stop_decision, warning_after_max_blocks
+from of_hook_core import (
+    append_event,
+    collect_state,
+    emit_json,
+    read_stdin_json,
+    stop_decision,
+    warning_after_max_blocks,
+)
 
 
 FAIL_OPEN_PREFIX = (
@@ -21,6 +38,15 @@ FAIL_OPEN_PREFIX = (
 
 def failure_payload(exc: Exception) -> dict[str, object]:
     return {"systemMessage": f"{FAIL_OPEN_PREFIX} {exc}"}
+
+
+def last_message(input_data: dict) -> str:
+    value = input_data.get("last_assistant_message")
+    if isinstance(value, str):
+        return value
+    if isinstance(value, list):
+        return "\n".join(str(item.get("text", "")) if isinstance(item, dict) else str(item) for item in value)
+    return ""
 
 
 def main() -> dict[str, object]:
@@ -35,7 +61,7 @@ def main() -> dict[str, object]:
         }
 
     state = collect_state(input_data)
-    block, reason = stop_decision(state)
+    block, reason = stop_decision(state, last_message(input_data))
     if block:
         append_event(input_data, "stop_block", reason=reason, mode=state.get("mode"))
         return {"decision": "block", "reason": reason}
@@ -65,4 +91,3 @@ def run() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(run())
-

@@ -1,7 +1,7 @@
 {
   "name": "opus-fable-performance",
-  "version": "0.3.1",
-  "description": "Codex and Opus maximum-performance operating layer with skills, procedure packs, goal ledgers, and Codex-native evidence hooks.",
+  "version": "0.4.0",
+  "description": "Codex and Opus maximum-performance operating layer with skills, procedure packs, goal ledgers, Codex-native evidence hooks, and Fable 5.1-style delivery, push-gate, and last-paragraph completion rules.",
   "author": {
     "name": "Local"
   },
