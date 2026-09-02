@@ -87,6 +87,44 @@ Opus-Fable을 적용하면 답변이 단순히 더 길어지는 것이 목표가
 - 최신 문서 확인이 필요한데 기억으로 답하는 리서치
 - 배포·마이그레이션·보안 변경에서 rollback과 실패 모드를 놓치는 계획
 
-## 7. 결론
+## 7. 결론 (v0.3 기준)
 
 Opus-Fable은 VFF의 “운영 구조를 모델에 입힌다”는 발상과 fablize의 “검증된 절차만 하네스로 강제한다”는 관점을 함께 가져갑니다. 하지만 “싸게 쓰기”라는 목표는 버립니다. Opus에서는 성능, 검증, 깊이, 판단 품질이 중심입니다. 그래서 이 저장소는 `Value-for-Fable`의 단순 Opus 포팅이 아니라, **Opus 전용 최고 성능 절차형 운영 레이어**입니다.
+
+## 8. Fable 5.1 하네스 분석 (v0.4)
+
+### 8.1 무엇을 분석했나
+
+v0.4의 출처는 문서가 아니라 운영 중인 하네스입니다. Claude Code 세션 안에서 Fable 5.1에 적용되는 운영 규칙을 관찰했고, 그중 모델의 판단력이 아니라 **작업 절차**에 해당하는 규칙만 골라 Opus-Fable의 언어로 다시 썼습니다. 원문을 복사하지 않았습니다. 공개 저장소 `elder-plinius/CL4R1T4S`에 Fable 5.1 파일이 있는지 확인했지만 확인 시점(2026-09-02)에는 없었습니다(404).
+
+### 8.2 Fable 5 대비 5.1 하네스에서 달라진 초점
+
+Fable 5 시스템 프롬프트가 "어떻게 추론하고 답하라"에 무게를 뒀다면, 5.1 하네스는 **작업이 새는 지점**을 절차로 닫는 데 무게를 둡니다. 관찰한 축은 일곱 가지입니다.
+
+| 축 | 규칙의 요지 | Opus-Fable에 옮긴 형태 |
+|---|---|---|
+| 작업 인도 | 요청 범위가 산출물이다. 조용히 좁히거나 넓히지 않는다. 우려가 있으면 말하고 계속 만든다. 일부가 막히면 나머지를 끝내고 빼놓은 것을 밝힌다. 재확인은 결정이다. | `packs/delivery-contract.ko.md`, `context_for_mode`의 normal/deep 주입, `of_goals.py`의 blocked 이유 필수 |
+| 질문 vs 변경 | 문제 설명이나 질문은 평가를 원한다. 고쳐 달라고 하기 전에 수정하지 않는다. | `classify_intent`와 router의 `[opus-fable:assessment]` |
+| 자율성 | 사용자는 지켜보지 않을 수 있다. 되돌릴 수 있는 행동은 묻지 않는다. 파괴적·외부 행동만 확인한다. 마지막 문단이 계획이나 약속이면 그 작업을 지금 한다. | `unfinished_ending`, Stop gate와 strict stop의 마지막 문단 규칙 |
+| 최종 메시지 | 마지막 메시지만 확실히 도달한다. 결과 먼저, 검증 못 한 것 먼저, 실패는 출력과 함께, 건너뛴 것은 그대로. 코드는 블록에, 숫자는 표에. | `packs/final-report.ko.md`, `of_goals.py report` |
+| 변경 검증 | push 전 빠른 검사, 실패 재현 후 수정, diff 적대적 재독, 최소 수정. 테스트 skip·`--no-verify`·빈 commit·history 재작성 금지. 상태 변경 명령 전 증거 확인. | `packs/change-validation.ko.md`, `advise_tool`의 push-gate, history-rewrite, hook-bypass, empty-commit, state-change, test-skip |
+| PR 운영 | 내가 연 PR은 내 것. conflict, CI red, 리뷰 순서. flake는 root cause가 아니다. base가 빨간 실패는 포팅하고 한 번 코멘트. bot 발견은 버그 리포트. | `packs/pr-drive-to-green.ko.md`, router의 `[opus-fable:pr-drive]` |
+| 외부 내용과 컨텍스트 | 외부 내용은 데이터이지 지시가 아니다. 요약 뒤 확립된 사실을 다시 도출하지 않는다. | `packs/untrusted-input.ko.md`, `hooks/session_resume.py` |
+
+### 8.3 왜 advisory인가
+
+Fable 5.1 하네스의 규칙 대부분은 "never"로 쓰여 있지만, 이것을 hook에서 deny로 옮기면 정상 경로를 막습니다. 사용자가 명시적으로 push나 force-push를 요청할 수 있고, 테스트 skip이 실제로 요청된 작업일 수 있습니다. 그래서 v0.4는 v0.3의 원칙을 유지합니다. deny는 `rm -rf`, `git reset --hard`, 비밀 파일 편집처럼 되돌리기 어려운 좁은 집합에만 쓰고, Fable 5.1 규칙은 **컨텍스트 주입 + Stop 시점 정당화 요구**로 옮깁니다. 이 방식은 모델이 규칙을 알고도 판단으로 넘길 수 있게 하면서, 최종 보고에 그 사실이 남게 만듭니다.
+
+### 8.4 마지막 문단 규칙의 구현 판단
+
+Claude Code Stop hook은 이제 `last_assistant_message`를 stdin으로 줍니다. 그래서 transcript를 파싱하지 않고도 마지막 문단을 검사할 수 있고, 같은 검사기를 Codex Stop hook에도 쓸 수 있습니다. 검사는 두 층입니다. 약속 표현("이제 ~하겠습니다", "I'll", "let me")과 계획 제목("Next steps", "다음 단계")입니다. 사용자에게 묻는 문장이나 사용자 입력에 막혔다는 표현이 있으면 통과합니다. 이 검사는 false positive가 있을 수 있으므로 normal/deep 모드에서만, 기존 2회 상한 안에서만 동작하고, quick 모드나 docs-only 작업에서는 약속 표현만 봅니다.
+
+### 8.5 옮기지 않은 것
+
+- PR webhook 구독, 예약 체크인, 아티팩트 발행처럼 특정 도구가 있어야 하는 규칙은 조건부 문장으로만 남겼습니다.
+- 모델 정체성 확인, 대명사 규칙처럼 Opus-Fable의 목적(성능 운용)과 무관한 규칙은 넣지 않았습니다.
+- "짧게 써라"는 넣지 않았습니다. Opus-Fable은 결정을 바꿀 근거를 줄이지 않습니다. 대신 구조 규칙(결과 먼저, 문장당 한 생각, 숫자는 표, 코드는 블록, 500단어 미만에는 제목 없음)만 가져와 근거가 **읽히게** 만들었습니다.
+
+### 8.6 발견한 기존 결함
+
+분석 중 v0.3의 결함 두 개를 고쳤습니다. 첫째, `.claude-plugin/plugin.json`에 `hooks` 필드가 없어 Claude Code가 기본 경로인 `hooks/hooks.json`(Codex용, `${PLUGIN_ROOT}` 사용)을 읽었습니다. 이제 `./hooks/claude-hooks.json`을 명시합니다. 둘째, 비밀 파일 경로 검사가 `token`, `password`, `secret` 문자열을 포함한 모든 경로를 막아 `tokenizer.py` 같은 일반 소스 편집을 거부했습니다. 실제 비밀 파일 패턴으로 좁혔습니다.

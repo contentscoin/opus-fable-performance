@@ -1,7 +1,7 @@
 {
   "name": "opus-fable-performance",
-  "version": "0.3.1",
-  "description": "Opus 최고 성능 운영 레이어: 작업별 router, evidence gate, 깊은 진단 pack, 렌더 검증 pack, Opus 리뷰어 워크플로.",
+  "version": "0.4.0",
+  "description": "Opus 최고 성능 운영 레이어: 작업별 router, evidence gate, 깊은 진단 pack, 렌더 검증 pack, Fable 5.1식 delivery/final-report/push-gate/PR drive-to-green 절차, compaction-safe 상태 복원, Opus 리뷰어 워크플로.",
   "author": {
     "name": "Local",
     "url": "https://github.com/local"
@@ -12,6 +12,7 @@
   "skills": [
     "./skills/opus-fable"
   ],
+  "hooks": "./hooks/claude-hooks.json",
   "keywords": [
     "opus",
     "fable",

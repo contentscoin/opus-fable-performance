@@ -22,6 +22,15 @@ from typing import Any
 
 MAX_STOP_BLOCKS = 2
 
+# Advisory flags never deny a tool call; they inject context so the model can
+# reconsider. Blocking flags (COMMAND_RULES / classify_patch) stay narrow.
+ADVISORY_PUSH = "push-gate"
+ADVISORY_HISTORY = "history-rewrite"
+ADVISORY_BYPASS = "hook-bypass"
+ADVISORY_EMPTY_COMMIT = "empty-commit"
+ADVISORY_STATE_CHANGE = "state-change"
+ADVISORY_TEST_SKIP = "test-skip"
+
 CODE_EXTS = {
     ".c",
     ".cc",
@@ -96,8 +105,82 @@ COMMAND_RULES: list[tuple[str, re.Pattern[str], str]] = [
     ("infra-destroy", re.compile(r"(?i)\b(terraform\s+destroy|pulumi\s+destroy)\b"), "Infrastructure destruction is blocked."),
 ]
 
-PATCH_SECRET_PATH_RE = re.compile(
-    r"(?im)^\*\*\* (?:Add|Update|Delete) File: .*(?:\.env|id_rsa|\.pem|secret|token|password)"
+# Secret-bearing file names. Deliberately narrow: `tokenizer.py` or
+# `password_validator.ts` are ordinary source files and must not be denied.
+SECRET_FILE_PATH_RE = re.compile(
+    r"(?i)(?:^|[\\/])(?:"
+    r"\.env(?![\w.-]*(?:example|sample|template|dist))[\w.-]*|"
+    r"id_(?:rsa|dsa|ecdsa|ed25519)[\w.-]*|"
+    r"[\w.-]*\.(?:pem|key|p12|pfx|jks)|"
+    r"(?:secrets?|credentials?|tokens?|passwords?|service[-_]account)(?:[.-][\w-]+)*\.(?:json|ya?ml|toml|txt|env|ini|cfg)|"
+    r"\.netrc|\.pypirc|\.git-credentials"
+    r")$"
+)
+
+# --- Fable 5.1 harness ports: advisory (non-blocking) tool rules -------------
+GIT_PUSH_RE = re.compile(r"(?i)\bgit\s+push\b")
+GIT_FORCE_PUSH_RE = re.compile(r"(?i)\bgit\s+push\b[^\n;&|]*(?:\s--force\b|\s-f\b|\s--force-with-lease\b)")
+GIT_NO_VERIFY_RE = re.compile(r"(?i)\bgit\s+(?:commit|push)\b[^\n;&|]*\s--no-verify\b")
+GIT_EMPTY_COMMIT_RE = re.compile(r"(?i)\bgit\s+commit\b[^\n;&|]*\s--allow-empty\b")
+GIT_HISTORY_RE = re.compile(r"(?i)\bgit\s+(?:rebase\b|commit\b[^\n;&|]*\s--amend\b)")
+STATE_CHANGE_RE = re.compile(
+    r"(?i)\b("
+    r"systemctl\s+(?:restart|stop|disable)|service\s+\S+\s+(?:restart|stop)|"
+    r"docker\s+(?:restart|rm|kill|stop)|docker\s+compose\s+down|kubectl\s+(?:delete|rollout\s+restart|scale)|"
+    r"pkill\b|killall\b|kill\s+-9|"
+    r"git\s+checkout\s+(?:--\s+\S|\.(?:\s|$)|\S+\s+--\s+\S)|git\s+restore\s+(?!--staged)\S|"
+    r"git\s+stash\s+(?:drop|clear)|git\s+branch\s+-D|"
+    r"drop\s+table|truncate\s+table|"
+    r"mv\s+(?:-[A-Za-z]+\s+)*\S+\s+\S+"
+    r")"
+)
+TEST_SKIP_RE = re.compile(
+    r"(?i)("
+    r"@pytest\.mark\.(?:skip|xfail)|pytest\.skip\(|@unittest\.skip|self\.skipTest\(|"
+    r"\b(?:it|test|describe|context)\.(?:skip|only)\(|\bx(?:it|test|describe)\(|\bfit\(|\bfdescribe\(|"
+    r"#\[ignore\]|\bt\.Skip\(|@Ignore\b|@Disabled\b|\[Ignore\]|\[Skip\b|"
+    r"testTimeout\s*[:=]\s*0|--no-verify|SKIP_TESTS|skip_ci|\[skip\s+ci\]|\[ci\s+skip\]"
+    r")"
+)
+PROMISE_RE = re.compile(
+    r"(?i)(\bI\s*(?:will|'ll)\b|\blet me\b|\bnow I\b|\bnext I\b|\bI am going to\b|\bI'm going to\b|"
+    r"이제\s*(?:하겠|진행하겠|구현하겠|추가하겠|실행하겠|수정하겠|확인하겠)|"
+    r"다음으로\s*(?:하겠|진행하겠|구현하겠|추가하겠|실행하겠|수정하겠|확인하겠)|"
+    r"바로\s*(?:하겠|진행하겠|구현하겠|추가하겠|실행하겠|수정하겠|확인하겠)|"
+    r"(?:하겠|진행하겠|구현하겠|추가하겠|실행하겠|수정하겠|확인하겠)습니다\s*\.?\s*$)"
+)
+PLAN_ENDING_RE = re.compile(
+    r"(?im)^(?:#+\s*)?(?:\**)?(?:next\s+steps?|plan|remaining\s+(?:work|steps?)|to\s*do|"
+    r"다음\s*단계|계획|남은\s*(?:작업|단계)|할\s*일)\s*(?:\**)?\s*:?\s*$"
+)
+ASKS_USER_RE = re.compile(
+    r"(?i)(\?|shall i|would you like|do you want|let me know|which option|please confirm|"
+    r"원하시면|할까요|하시겠습니까|어느 쪽|선택해|확인해\s*주|알려\s*주)"
+)
+BLOCKED_ON_USER_RE = re.compile(
+    r"(?i)(blocked on|cannot proceed without|need(?:s)? (?:your|user) (?:input|decision|approval)|"
+    r"waiting for (?:you|the user)|막혀|필요합니다\s*\.?\s*$|입력이 필요|결정이 필요|승인이 필요)"
+)
+ASSESS_RE = re.compile(
+    r"(?i)^\s*(?:why|how|what|which|is|are|does|do|can|could|should|would|explain|describe|compare|analy[sz]e|"
+    r"review|assess|evaluate|summari[sz]e|tell me)\b|"
+    r"\?\s*$|왜|어떻게\s*(?:생각|보|되|동작)|설명해|분석해|비교해|검토해|리뷰해|평가해|요약해|알려\s*줘|무엇|뭐야|인가요|일까요|맞아\??"
+)
+# Imperative change requests win over question wording ("explain it, then fix it").
+STRONG_CHANGE_RE = re.compile(
+    r"(?i)\b(?:implement|fix|patch|refactor|migrate|deploy|push|commit|rename|install|configure|set up)\b|"
+    r"\b(?:change|edit|create|add|remove|update|apply|write|make|build)\s+(?:it|this|that|the|a|an|me)\b|"
+    r"구현해|고쳐|수정해|바꿔|추가해|삭제해|만들어|작성해|적용해|배포해|푸시해|커밋해|설치해|설정해|리팩터|반영해|올려"
+)
+CHANGE_RE = re.compile(
+    r"(?i)\b(implement|fix|patch|change|edit|create|build|add|remove|refactor|migrate|deploy|write|update|apply|"
+    r"push|commit|rename|delete|install|configure|make it|set up)\b|"
+    r"구현|고쳐|수정해|바꿔|추가해|삭제해|만들어|작성해|적용해|배포해|푸시|커밋|설치해|설정해|리팩터|마이그레이션해|반영해"
+)
+PR_DRIVE_RE = re.compile(
+    r"(?i)\b(pull request|\bpr\b|ci\b|pipeline|merge conflict|review comments?|checks? (?:failed|red)|"
+    r"babysit|watch the pr|drive to green|mergeable)\b|"
+    r"풀\s*리퀘|머지\s*충돌|리뷰\s*코멘트|체크\s*실패|파이프라인|머지\s*가능|PR\s*(?:봐|지켜|관리|올려|만들)"
 )
 PATCH_DELETE_RE = re.compile(r"(?im)^\*\*\* Delete File: ")
 PATCH_PATH_RE = re.compile(r"(?im)^\*\*\* (?:Add|Update|Delete) File: (.+)$")
@@ -155,7 +238,7 @@ def redact(value: Any, limit: int = 500) -> str:
 
 
 def data_root() -> Path:
-    env_data = os.environ.get("PLUGIN_DATA")
+    env_data = os.environ.get("PLUGIN_DATA") or os.environ.get("CLAUDE_PLUGIN_DATA")
     base = Path(env_data).expanduser() if env_data else Path(tempfile.gettempdir()) / "opus-fable"
     return base.resolve()
 
@@ -240,10 +323,27 @@ def classify_prompt(prompt: str) -> tuple[str, list[str], str]:
     return "quick", sorted(set(risks)), redact(text, 180)
 
 
-def context_for_mode(mode: str, risk_flags: list[str]) -> str:
+def classify_intent(prompt: str) -> str:
+    """Fable 5.1 delivery rule: a question or problem description wants an
+    assessment, not a fix. Returns "assess", "change", or "unknown"."""
+    text = (prompt or "").strip()
+    if not text:
+        return "unknown"
+    if STRONG_CHANGE_RE.search(text):
+        return "change"
+    if ASSESS_RE.search(text):
+        return "assess"
+    if CHANGE_RE.search(text):
+        return "change"
+    return "unknown"
+
+
+def context_for_mode(mode: str, risk_flags: list[str], intent: str = "unknown") -> str:
     lines = [f"opus-fable task mode: {mode}."]
     if risk_flags:
         lines.append("Risk flags: " + ", ".join(risk_flags) + ".")
+    if intent == "assess":
+        lines.append("Intent: assessment. Report findings and a recommendation; do not apply fixes unless asked.")
     if mode == "quick":
         lines.append("Keep this small; do not force a broad plan or unrelated verification.")
     elif mode == "normal":
@@ -252,6 +352,12 @@ def context_for_mode(mode: str, risk_flags: list[str]) -> str:
         lines.append("Define observable exit proof, compare serious risks, and verify before final.")
     elif mode == "blocked":
         lines.append("Do not proceed until the destructive or secret-bearing scope is narrowed.")
+    if mode in {"normal", "deep"}:
+        lines.append(
+            "Deliver the requested scope as asked: do not narrow, widen, or transform it. "
+            "If part is blocked, finish the rest and say what was left out and why."
+        )
+        lines.append("Do not end on a plan or a promise; do that work with tool calls, or stop only when blocked on user input.")
     lines.append("Never claim verification that was not actually observed.")
     return "\n".join(lines)
 
@@ -282,7 +388,7 @@ def classify_command(command: str) -> tuple[bool, list[str], str]:
 def classify_patch(command: str) -> tuple[bool, list[str], str]:
     flags: list[str] = []
     reasons: list[str] = []
-    if PATCH_SECRET_PATH_RE.search(command or ""):
+    if any(SECRET_FILE_PATH_RE.search(path.strip()) for path in PATCH_PATH_RE.findall(command or "")):
         flags.append("secret-file-edit")
         reasons.append("Edits to secret-bearing files are blocked.")
     if len(PATCH_DELETE_RE.findall(command or "")) > 5:
@@ -293,15 +399,112 @@ def classify_patch(command: str) -> tuple[bool, list[str], str]:
     return False, [], ""
 
 
+EDIT_TOOLS = {"apply_patch", "functions.apply_patch", "edit", "write", "multiedit", "notebookedit"}
+SHELL_TOOLS = {"bash", "shell", "shell_command", "functions.shell_command"}
+
+
 def classify_tool_risk(input_data: dict[str, Any]) -> tuple[bool, list[str], str]:
     tool_name = str(input_data.get("tool_name") or "")
     name = tool_name.lower()
     command = tool_input_text(input_data)
-    if name in {"apply_patch", "functions.apply_patch", "edit", "write"}:
-        return classify_patch(command)
-    if name in {"bash", "shell", "shell_command", "functions.shell_command"}:
+    if name in EDIT_TOOLS:
+        blocked, flags, reason = classify_patch(command)
+        tool_input = input_data.get("tool_input")
+        file_path = str(tool_input.get("file_path") or tool_input.get("path") or "") if isinstance(tool_input, dict) else ""
+        if file_path and SECRET_FILE_PATH_RE.search(file_path) and "secret-file-edit" not in flags:
+            flags.append("secret-file-edit")
+            reason = (reason + " " if reason else "") + "Edits to secret-bearing files are blocked."
+            blocked = True
+        return blocked, flags, reason
+    if name in SHELL_TOOLS:
         return classify_command(command)
     return False, [], ""
+
+
+def edit_payload_text(input_data: dict[str, Any]) -> str:
+    tool_input = input_data.get("tool_input")
+    if isinstance(tool_input, dict):
+        parts = [str(tool_input.get(key) or "") for key in ("content", "new_string", "patch", "command", "new_source")]
+        edits = tool_input.get("edits")
+        if isinstance(edits, list):
+            parts.extend(str(item.get("new_string") or "") for item in edits if isinstance(item, dict))
+        return "\n".join(part for part in parts if part)
+    if isinstance(tool_input, str):
+        return tool_input
+    return ""
+
+
+def advise_tool(input_data: dict[str, Any], state: dict[str, Any] | None = None) -> tuple[list[str], list[str]]:
+    """Non-blocking Fable 5.1 guardrails. Returns (flags, messages).
+
+    - push-gate: pushing with changed files and no successful verification.
+    - history-rewrite / hook-bypass / empty-commit: drive-to-green rules.
+    - state-change: evidence must support the specific action, not a pattern match.
+    - test-skip: never skip, disable, or quarantine a test to get green.
+    """
+    name = str(input_data.get("tool_name") or "").lower()
+    flags: list[str] = []
+    messages: list[str] = []
+
+    if name in SHELL_TOOLS:
+        command = tool_input_text(input_data)
+        if GIT_PUSH_RE.search(command):
+            current = state if state is not None else collect_state(input_data)
+            if current.get("changed_files_seen") and not has_successful_verification(current):
+                flags.append(ADVISORY_PUSH)
+                messages.append(
+                    "opus-fable push gate: files changed in this turn but no successful verification was observed. "
+                    "Run the repo's fast checks (lint, typecheck, changed-package tests) before pushing, or state why none applies. "
+                    "One validated push beats three speculative ones."
+                )
+            if GIT_FORCE_PUSH_RE.search(command):
+                flags.append(ADVISORY_HISTORY)
+                messages.append(
+                    "opus-fable: force push rewrites history. Only do this on a branch you created; never on someone else's branch."
+                )
+        if GIT_NO_VERIFY_RE.search(command):
+            flags.append(ADVISORY_BYPASS)
+            messages.append("opus-fable: --no-verify bypasses repository hooks. Fix the failing check instead, or say why bypass is required.")
+        if GIT_EMPTY_COMMIT_RE.search(command):
+            flags.append(ADVISORY_EMPTY_COMMIT)
+            messages.append("opus-fable: an empty commit to re-trigger CI is not a fix. Push a real change or re-run the job once.")
+        if GIT_HISTORY_RE.search(command):
+            flags.append(ADVISORY_HISTORY)
+            messages.append("opus-fable: rebase/amend rewrites history. Confirm this branch is yours and unshared before continuing.")
+        if STATE_CHANGE_RE.search(command):
+            flags.append(ADVISORY_STATE_CHANGE)
+            messages.append(
+                "opus-fable evidence-before-action: this command changes system or workspace state. "
+                "Check that the observed evidence supports this specific action; a signal that pattern-matches a known failure may have a different cause. "
+                "Look at the target before overwriting or discarding it."
+            )
+    elif name in EDIT_TOOLS:
+        payload = edit_payload_text(input_data)
+        if payload and TEST_SKIP_RE.search(payload):
+            flags.append(ADVISORY_TEST_SKIP)
+            messages.append(
+                "opus-fable: this edit skips, focuses, or disables a test or CI check. Never skip, disable, or quarantine a test to get green. "
+                "If the user explicitly asked for it, say so in the final report; otherwise fix the root cause."
+            )
+    return sorted(set(flags)), messages
+
+
+def unfinished_ending(text: str) -> tuple[bool, str]:
+    """Fable 5.1 last-paragraph rule: a turn must not end on a plan, a promise,
+    or a next-steps list for work not yet done, unless it is blocked on the user."""
+    body = (text or "").strip()
+    if not body:
+        return False, ""
+    tail = body[-600:]
+    if ASKS_USER_RE.search(tail) or BLOCKED_ON_USER_RE.search(tail):
+        return False, ""
+    if PROMISE_RE.search(tail):
+        return True, "the response ended with an intent to do work, but no tool action followed"
+    paragraphs = [p for p in re.split(r"\n\s*\n", body) if p.strip()]
+    last = paragraphs[-1] if paragraphs else body
+    if PLAN_ENDING_RE.search(last) or (len(paragraphs) > 1 and PLAN_ENDING_RE.search(paragraphs[-2]) and re.search(r"(?m)^\s*(?:[-*]|\d+[.)])\s+", last)):
+        return True, "the response ended with a plan or next-steps list for work that has not been done"
+    return False, ""
 
 
 def classify_path_kind(path_value: str) -> str:
@@ -423,6 +626,8 @@ def collect_state(input_data: dict[str, Any]) -> dict[str, Any]:
     prompt_events = [event for event in events if event.get("kind") == "prompt_start"]
     mode = str(prompt_events[-1].get("mode") if prompt_events else "quick")
     risks = list(prompt_events[-1].get("risks") if prompt_events else [])
+    intent = str(prompt_events[-1].get("intent") or "unknown") if prompt_events else "unknown"
+    advisories: list[str] = []
     changed: list[str] = []
     kinds: list[str] = []
     verifications: list[dict[str, Any]] = []
@@ -435,6 +640,10 @@ def collect_state(input_data: dict[str, Any]) -> dict[str, Any]:
             for flag in event.get("flags") or []:
                 if flag not in risks:
                     risks.append(flag)
+        elif kind == "advisory":
+            for flag in event.get("flags") or []:
+                if flag not in advisories:
+                    advisories.append(flag)
         elif kind == "change":
             for path in event.get("paths") or []:
                 if path not in changed:
@@ -458,7 +667,9 @@ def collect_state(input_data: dict[str, Any]) -> dict[str, Any]:
 
     return {
         "mode": mode,
+        "intent": intent,
         "risks": risks,
+        "advisories": advisories,
         "changed_paths": changed,
         "change_kinds": kinds,
         "changed_files_seen": bool(changed or kinds),
@@ -482,27 +693,35 @@ def docs_only(state: dict[str, Any]) -> bool:
     return bool(state.get("changed_files_seen")) and bool(kinds) and kinds <= {"docs"}
 
 
-def stop_decision(state: dict[str, Any]) -> tuple[bool, str]:
+def stop_decision(state: dict[str, Any], last_message: str = "") -> tuple[bool, str]:
     mode = state.get("mode") or "quick"
     changed = bool(state.get("changed_files_seen"))
     verified = has_successful_verification(state)
     stop_blocks = int(state.get("stop_blocks") or 0)
+    advisories = set(state.get("advisories") or [])
 
     if stop_blocks >= MAX_STOP_BLOCKS:
         return False, "opus-fable allowed stop after two verification reminders; report the remaining verification gap."
     if mode == "quick":
         return False, ""
-    if docs_only(state):
-        return False, ""
     if mode == "blocked":
         return True, "opus-fable: narrow the blocked risk before final response."
+
+    # Fable 5.1 last-paragraph rule applies to any normal/deep turn, docs-only included.
+    unfinished, why = unfinished_ending(last_message)
+    if unfinished:
+        return True, f"opus-fable: {why}. Do that work now with tool calls, or stop only if blocked on user input."
+
+    if docs_only(state):
+        return False, ""
+    skip_note = " A test-skip edit was observed; justify it or restore the test." if ADVISORY_TEST_SKIP in advisories else ""
     if mode == "deep" and not verified:
         if changed:
-            return True, "opus-fable: run the strongest practical verification for the changed behavior before final response."
+            return True, "opus-fable: run the strongest practical verification for the changed behavior before final response." + skip_note
         if not has_any_verification(state):
             return True, "opus-fable: record one observable exit proof, or state why this deep task has no runnable verifier."
     if mode == "normal" and changed and not verified:
-        return True, "opus-fable: run one relevant verification command for the changed files, or state why no verifier applies."
+        return True, "opus-fable: run one relevant verification command for the changed files, or state why no verifier applies." + skip_note
     return False, ""
 
 

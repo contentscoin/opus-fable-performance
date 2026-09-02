@@ -27,15 +27,23 @@ REQUIRED_FILES = [
     "hooks/codex/stop_gate.py",
     "hooks/router.sh",
     "hooks/finish-the-work.sh",
+    "hooks/strict_stop.py",
+    "hooks/session_resume.py",
     "hooks/opus-reminder.sh",
     "packs/investigation-protocol.ko.md",
     "packs/verification-grounding.ko.md",
     "packs/evidence-gate.ko.md",
     "packs/reviewer-gate.ko.md",
     "packs/capability-escalation.ko.md",
+    "packs/delivery-contract.ko.md",
+    "packs/final-report.ko.md",
+    "packs/change-validation.ko.md",
+    "packs/pr-drive-to-green.ko.md",
+    "packs/untrusted-input.ko.md",
     "scripts/of_goals.py",
     "scripts/of_hook_core.py",
     "tests/test_codex_hooks.py",
+    "tests/test_fable_harness.py",
     "setup/install-codex.ps1",
     "setup/install-claude.sh",
     "setup/enable-strict-stop.sh",
@@ -102,14 +110,33 @@ def validate_jsonl(path: str) -> None:
             fail(f"invalid JSONL in {path}:{i}: {exc}")
 
 
+def validate_claude_plugin_wiring() -> None:
+    manifest = json.loads(require_file(".claude-plugin/plugin.json").read_text(encoding="utf-8"))
+    if manifest.get("hooks") != "./hooks/claude-hooks.json":
+        fail(".claude-plugin/plugin.json must point hooks to ./hooks/claude-hooks.json (hooks/hooks.json is the Codex file)")
+    hooks = json.loads(require_file("hooks/claude-hooks.json").read_text(encoding="utf-8")).get("hooks", {})
+    for groups in hooks.values():
+        for group in groups:
+            for hook in group.get("hooks", []):
+                command = hook.get("command", "")
+                if "${CLAUDE_PLUGIN_ROOT}" not in command or "${PLUGIN_ROOT}" in command:
+                    fail(f"claude-hooks.json command must use ${{CLAUDE_PLUGIN_ROOT}}: {command}")
+    packs_dir = ROOT / "packs"
+    router = require_file("hooks/router.sh").read_text(encoding="utf-8")
+    for match in set(re.findall(r"([a-z-]+\.ko\.md)", router)):
+        if not (packs_dir / match).is_file():
+            fail(f"router.sh references missing pack: {match}")
+
+
 def main() -> None:
     for path in REQUIRED_FILES:
         require_file(path)
-    for path in [".claude-plugin/plugin.json", ".claude-plugin/marketplace.json", ".codex-plugin/plugin.json", "hooks/hooks.json"]:
+    for path in [".claude-plugin/plugin.json", ".claude-plugin/marketplace.json", ".codex-plugin/plugin.json", "hooks/hooks.json", "hooks/claude-hooks.json"]:
         validate_json(path)
     for path in FRONTMATTER_FILES:
         validate_frontmatter(path)
     validate_jsonl("evals/tasks.jsonl")
+    validate_claude_plugin_wiring()
     print("[OK] repository structure validated")
 
 

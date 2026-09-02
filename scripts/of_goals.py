@@ -99,6 +99,9 @@ def checkpoint(args: argparse.Namespace) -> None:
         if goal["id"] == plan["goals"][-1]["id"]:
             if not args.verify_cmd.strip() or not args.verify_evidence.strip():
                 sys.exit("opus-fable: final goal requires --verify-cmd and --verify-evidence.")
+    elif not args.evidence.strip():
+        # Fable 5.1 delivery rule: what was left out must be stated with its reason.
+        sys.exit(f"opus-fable: {args.status} requires --evidence describing what is missing and why.")
     goal["status"] = args.status
     goal["evidence"] = args.evidence
     goal["verify_cmd"] = args.verify_cmd or None
@@ -120,6 +123,76 @@ def status(_: argparse.Namespace) -> None:
         print(f"  {goal['id']} [{marks.get(goal['status'], goal['status'])}] {goal['title']}")
 
 
+def resume(_: argparse.Namespace) -> None:
+    """Compact state for re-injection after context compaction. Silent when no plan exists."""
+    if not GOALS.exists():
+        return
+    plan = json.loads(GOALS.read_text(encoding="utf-8"))
+    done = sum(1 for g in plan["goals"] if g["status"] == "complete")
+    print(f"opus-fable resume: {done}/{len(plan['goals'])} complete - {plan['brief']}")
+    for goal in plan["goals"]:
+        line = f"  {goal['id']} [{goal['status']}] {goal['title']}: {goal['objective']}"
+        if goal.get("evidence"):
+            line += f" | {str(goal['evidence'])[:160]}"
+        print(line)
+    active = [g for g in plan["goals"] if g["status"] == "in_progress"]
+    pending = [g for g in plan["goals"] if g["status"] == "pending"]
+    if active:
+        print(f"Continue {active[0]['id']}; do not re-derive evidence already recorded above.")
+    elif pending:
+        print("Run `python scripts/of_goals.py next` to start the next goal.")
+    else:
+        print("All goals complete. Run `python scripts/of_goals.py report` for the final report skeleton.")
+
+
+def check(_: argparse.Namespace) -> None:
+    """Exit 1 when goals remain open. Used by strict stop and CI-style gates."""
+    plan = load()
+    remaining = [g for g in plan["goals"] if g["status"] in ("pending", "in_progress")]
+    problems = [g for g in plan["goals"] if g["status"] in ("failed", "blocked")]
+    if remaining:
+        print("opus-fable check: open goals -> " + ", ".join(f"{g['id']} {g['title']}" for g in remaining))
+        sys.exit(1)
+    if problems:
+        print("opus-fable check: no open goals, but these were not completed -> " + ", ".join(
+            f"{g['id']} {g['title']} ({g['status']}: {g.get('evidence') or 'no reason'})" for g in problems))
+        sys.exit(2)
+    print("opus-fable check: all goals complete with evidence")
+
+
+def report(_: argparse.Namespace) -> None:
+    """Final report skeleton following the Fable 5.1 writing contract:
+    outcome first, unverified items first, evidence, caveats, verification."""
+    plan = load()
+    goals = plan["goals"]
+    complete = [g for g in goals if g["status"] == "complete"]
+    incomplete = [g for g in goals if g["status"] != "complete"]
+    final = goals[-1]
+    print(f"# {plan['brief']}")
+    print()
+    if incomplete:
+        print("**Outcome:** partially done. Left out: " + "; ".join(
+            f"{g['title']} ({g['status']}: {g.get('evidence') or 'no reason recorded'})" for g in incomplete) + ".")
+    else:
+        print("**Outcome:** all goals complete and verified.")
+    print()
+    print("**Evidence**")
+    for goal in complete:
+        print(f"- {goal['title']}: {goal.get('evidence')}")
+    print()
+    print("**Verification**")
+    if final["status"] == "complete" and final.get("verify_cmd"):
+        print("```")
+        print(final["verify_cmd"])
+        print("```")
+        print(f"Result: {final.get('verify_evidence')}")
+    else:
+        print("Not verified. State the command that was not run and why.")
+    print()
+    print("**Caveats**")
+    print("- <what could still be wrong, and what would confirm it>")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(prog="of_goals.py")
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -139,9 +212,20 @@ def main() -> None:
     k.add_argument("--verify-evidence", default="")
 
     sub.add_parser("status")
+    sub.add_parser("resume")
+    sub.add_parser("check")
+    sub.add_parser("report")
 
     args = parser.parse_args()
-    {"create": create, "next": next_goal, "checkpoint": checkpoint, "status": status}[args.cmd](args)
+    {
+        "create": create,
+        "next": next_goal,
+        "checkpoint": checkpoint,
+        "status": status,
+        "resume": resume,
+        "check": check,
+        "report": report,
+    }[args.cmd](args)
 
 
 if __name__ == "__main__":
