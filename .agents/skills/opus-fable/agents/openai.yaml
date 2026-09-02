@@ -1,4 +1,4 @@
 interface:
   display_name: "Opus Fable"
-  short_description: "최고 품질 리뷰, 진단, 의사결정 워크플로."
-  default_prompt: "Use $opus-fable for a maximum-quality diagnosis or architecture review."
+  short_description: "범위 충실, 증거 기반 검증, 정직한 최종 보고를 강제하는 최고 품질 워크플로."
+  default_prompt: "Use $opus-fable for a maximum-quality diagnosis, architecture decision, or final quality gate."

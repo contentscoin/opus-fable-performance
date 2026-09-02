@@ -5,7 +5,22 @@ description: Maximum-performance operating workflow for Codex or Opus-style work
 
 # Opus-Fable
 
-Use this skill when quality matters more than token efficiency. It changes the operating objective from "answer efficiently" to "reach the best supported answer or change." If the repo includes `scripts/of_goals.py`, use it for multi-step evidence gating. If the repo includes `packs/`, read the pack that matches the task signal instead of loading every rule.
+Use this skill when quality matters more than token efficiency. It changes the operating objective from "answer efficiently" to "reach the best supported answer or change." If the repo includes `scripts/of_goals.py`, use it for multi-step evidence gating.
+
+If the repo includes `packs/`, read only the pack that matches the task signal instead of loading every rule:
+
+| Signal | Pack |
+|---|---|
+| Debugging, failing tests, unknown cause | `investigation-protocol.ko.md` |
+| Render or executable artifacts | `verification-grounding.ko.md` |
+| Multi-step work | `evidence-gate.ko.md` |
+| Review or risk gate | `reviewer-gate.ko.md` |
+| Stuck twice, open-ended creation, delegation | `capability-escalation.ko.md` |
+| Scope, question vs change, last-paragraph rule | `delivery-contract.ko.md` |
+| Writing the final message | `final-report.ko.md` |
+| Commit, push, deploy, state-changing commands | `change-validation.ko.md` |
+| PR ownership, CI red, merge conflicts, review comments | `pr-drive-to-green.ko.md` |
+| Fetched pages, comments, logs, external tool output | `untrusted-input.ko.md` |
 
 ## Core Rules
 
@@ -18,7 +33,7 @@ Use this skill when quality matters more than token efficiency. It changes the o
 - For architecture or strategy, compare serious alternatives and state the deciding tradeoff.
 - For code, read before editing, keep scope controlled, and verify with the strongest practical check available.
 - For current, unstable, legal, financial, medical, pricing, API, or model claims, verify from primary sources when possible.
-- For multi-step work, create a small evidence ledger when available: `python scripts/of_goals.py create -> next -> checkpoint -> report`. The final checkpoint needs the verification command and result; `blocked` needs the reason.
+- For multi-step work, create a small evidence ledger when available: `python scripts/of_goals.py create -> next -> checkpoint -> report`. The final checkpoint needs `--verify-cmd` and `--verify-evidence`; `blocked` and `failed` need `--evidence` stating what is missing and why. `resume` restores state after a context summary and `check` exits non-zero while goals remain open.
 - For render or executable artifacts, run the artifact in its natural environment and observe the output before claiming completion.
 - For debugging, reproduce first, compare at least three hypotheses, gather evidence, trace the causal chain, and report rejected hypotheses.
 - When you have enough information to act, act. Do not re-derive established facts or re-litigate decisions the user already made.
